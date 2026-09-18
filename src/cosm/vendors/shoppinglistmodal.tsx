@@ -45,6 +45,7 @@ import LocationFilter, {
 	matchesLocationFilter,
 	type LocationOption,
 } from "./components/locationfilter";
+import InlineConfirmButton from "../components/inlineconfirmbutton";
 import { Modal } from "./modal";
 import shoppingListHelp1 from "../../assets/screenshots/shopping_list_help_1.png";
 import shoppingListHelp2 from "../../assets/screenshots/shopping_list_help_2.png";
@@ -1406,7 +1407,6 @@ const ShoppingListModal: React.FC<{
 		[],
 	);
 	const [isCopied, setIsCopied] = useState(false);
-	const [confirmClear, setConfirmClear] = useState(false);
 	const [showHelp, setShowHelp] = useState(false);
 	const [showSummary, setShowSummary] = useState(false);
 
@@ -1919,17 +1919,13 @@ const ShoppingListModal: React.FC<{
 											CONTRACTS
 										</Button>
 									)}
-									<Button
-										size="small"
-										variant="outlined"
+									<InlineConfirmButton
+										buttonText="CLEAR"
+										icon={<Trash2 className="inline-icon" />}
 										color="error"
-										startIcon={<Trash2 className="inline-icon" />}
+										action={() => setShoppingList([])}
 										disabled={shoppingList.length === 0}
-										onClick={() => setConfirmClear(true)}
-										sx={{ fontWeight: "bold" }}
-									>
-										CLEAR
-									</Button>
+									/>
 								</Box>
 							</Box>
 							<Box sx={{ flex: 1, overflowY: "auto", p: 1 }}>
@@ -2083,22 +2079,6 @@ const ShoppingListModal: React.FC<{
 						grandTotal={grandTotal}
 					/>
 				</Drawer>
-				<Modal
-					open={confirmClear}
-					onClose={() => setConfirmClear(false)}
-					title="Clear your Shopping List?"
-					actionLabel="Clear"
-					cancelLabel="Cancel"
-					type="negative"
-					onAction={() => {
-						setShoppingList([]);
-						setConfirmClear(false);
-					}}
-				>
-					<Typography>
-						You can add materials again from the panel to the left.
-					</Typography>
-				</Modal>
 				<Modal
 					open={showHelp}
 					onClose={() => setShowHelp(false)}
