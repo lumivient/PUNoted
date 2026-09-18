@@ -32,6 +32,8 @@ import {
 	Warehouse,
 	Globe,
 	Minus,
+	Square,
+	SquareCheck,
 	Target,
 	X,
 } from "lucide-react";
@@ -58,6 +60,7 @@ type MarketOptions = {
 	view: "grid" | "table";
 	location: string;
 	side: "ask" | "bid" | "both";
+	hideUnavailable: boolean;
 };
 const MARKET_OPTIONS_STORAGE_KEY = "marketOptions";
 
@@ -75,18 +78,21 @@ const compareLocations = (
 	);
 };
 
-const hasAvailableStock = (location: Location) =>
-	typeof location.available === "number" && location.available > 0;
-
-const filterAvailableLocations = (
+const filterLocations = (
 	locations: Location[] | undefined,
 	selectedLocation: string | null,
 ) =>
-	(locations || []).filter(
-		(location) =>
-			hasAvailableStock(location) &&
-			matchesLocationFilter(location, selectedLocation),
+	(locations || []).filter((location) =>
+		matchesLocationFilter(location, selectedLocation),
 	);
+
+const isUnavailableOrder = (
+	quantity: number,
+	locations: Location[] | undefined,
+) =>
+	locations?.length
+		? locations.every((location) => location.available === 0)
+		: quantity === 0;
 
 const isVendorViewMode = (value: string | null): value is "grid" | "table" =>
 	value === "grid" || value === "table";
@@ -95,6 +101,7 @@ const DEFAULT_MARKET_OPTIONS: MarketOptions = {
 	view: "table",
 	location: HORTUS_LOCATION_CODE,
 	side: "ask",
+	hideUnavailable: false,
 };
 
 const getStoredMarketOptions = (): MarketOptions => {
@@ -109,7 +116,13 @@ const getStoredMarketOptions = (): MarketOptions => {
 			typeof (options as MarketOptions).location === "string" &&
 			["ask", "bid", "both"].includes((options as MarketOptions).side)
 		) {
-			return options as MarketOptions;
+			return {
+				...(options as MarketOptions),
+				hideUnavailable:
+					typeof (options as MarketOptions).hideUnavailable === "boolean"
+						? (options as MarketOptions).hideUnavailable
+						: false,
+			};
 		}
 	} catch {
 		// Use the defaults when storage is unavailable or contains invalid JSON.
@@ -346,35 +359,15 @@ const VendorCard = React.memo(
 		const vendor = vendorStore.vendor;
 
 		const sortedList = useMemo(() => {
-			return [...buyOrders, ...sellOrders]
-				.map((order) => {
-					const activeLocations = filterAvailableLocations(
-						order.item.location,
-						null,
-					);
-
-					return {
-						...order,
-						item: {
-							...order.item,
-							location: activeLocations || [],
-						},
-					};
-				})
-				.filter(
-					(order) =>
-						(order.displayQuantity && order.displayQuantity > 0) ||
-						(order.item.location && order.item.location.length > 0),
-				)
-				.sort((a, b) => {
-					const tickerCmp = a.item.materialticker.localeCompare(
-						b.item.materialticker,
-						undefined,
-						{ sensitivity: "base" },
-					);
-					if (tickerCmp !== 0) return tickerCmp;
-					return (a.orderType || "sell").localeCompare(b.orderType || "sell");
-				});
+			return [...buyOrders, ...sellOrders].sort((a, b) => {
+				const tickerCmp = a.item.materialticker.localeCompare(
+					b.item.materialticker,
+					undefined,
+					{ sensitivity: "base" },
+				);
+				if (tickerCmp !== 0) return tickerCmp;
+				return (a.orderType || "sell").localeCompare(b.orderType || "sell");
+			});
 		}, [buyOrders, sellOrders]);
 
 		return (
@@ -544,10 +537,15 @@ const VendorCard = React.memo(
 								} = preparedOrder;
 								const isBuying = orderType === "buy";
 								const quantityLabel = isBuying ? "Wants" : "Has";
+								const isUnavailable = isUnavailableOrder(
+									displayQuantity,
+									item.location,
+								);
 
 								return (
 									<Box
 										key={item.frontendId || index}
+										className={isUnavailable ? "unavailable-order" : undefined}
 										sx={{
 											p: 0,
 											borderBottom:
@@ -631,65 +629,73 @@ const VendorCard = React.memo(
 											>
 												{[...item.location]
 													.sort(compareLocations)
-													.map((l, i) => (
-														<Box
-															key={i}
-															sx={{
-																display: "flex",
-																justifyContent: "space-between",
-																alignItems: "center",
-															}}
-														>
+													.map((l, i) => {
+														const isUnavailableLocation =
+															(l.available ?? displayQuantity) === 0;
+														return (
 															<Box
+																key={i}
+																className={
+																	isUnavailableLocation
+																		? "unavailable-order"
+																		: undefined
+																}
 																sx={{
 																	display: "flex",
+																	justifyContent: "space-between",
 																	alignItems: "center",
-																	gap: 0.5,
 																}}
 															>
-																{l.location_code === "HRT" ? (
-																	<Warehouse
-																		className="inline-icon"
-																		color={theme.palette.success.light}
-																	/>
-																) : (
-																	<Globe
-																		className="inline-icon"
-																		color={theme.palette.warning.main}
-																	/>
-																)}
-																<Typography
-																	variant="caption"
+																<Box
 																	sx={{
-																		fontSize: "0.80rem",
+																		display: "flex",
+																		alignItems: "center",
+																		gap: 0.5,
 																	}}
 																>
-																	{formatLocation(
-																		l.location_name,
-																		l.location_code,
+																	{l.location_code === "HRT" ? (
+																		<Warehouse
+																			className="inline-icon"
+																			color={theme.palette.success.light}
+																		/>
+																	) : (
+																		<Globe
+																			className="inline-icon"
+																			color={theme.palette.warning.main}
+																		/>
 																	)}
+																	<Typography
+																		variant="caption"
+																		sx={{
+																			fontSize: "0.80rem",
+																		}}
+																	>
+																		{formatLocation(
+																			l.location_name,
+																			l.location_code,
+																		)}
+																	</Typography>
+																</Box>
+																<Typography variant="caption">
+																	{quantityLabel}{" "}
+																	<Typography
+																		variant="caption"
+																		sx={{
+																			color:
+																				(l.available ?? displayQuantity) === 0
+																					? theme.palette.error.main
+																					: theme.palette.primary.light,
+																			fontWeight: "bold",
+																		}}
+																	>
+																		{formatAmount(
+																			l.available ?? displayQuantity,
+																		)}
+																	</Typography>
 																</Typography>
 															</Box>
-															<Typography variant="caption">
-																{quantityLabel}{" "}
-																<Typography
-																	variant="caption"
-																	sx={{
-																		color: theme.palette.primary.light,
-																		fontWeight: "bold",
-																	}}
-																>
-																	{formatAmount(
-																		(
-																			l as typeof l & {
-																				available?: number;
-																			}
-																		).available ?? displayQuantity,
-																	)}
-																</Typography>
-															</Typography>
-														</Box>
-													))}
+														);
+													})}
 											</Box>
 										) : (
 											<Box
@@ -724,7 +730,9 @@ const VendorCard = React.memo(
 												<Typography
 													variant="caption"
 													sx={{
-														color: theme.palette.primary.light,
+														color: isUnavailable
+															? theme.palette.error.main
+															: theme.palette.primary.light,
 														fontSize: "0.75rem",
 														fontWeight: "medium",
 													}}
@@ -799,6 +807,9 @@ const VendorsList = ({ loggedIn }: { loggedIn: boolean }) => {
 	const [marketOptions] = useState(getStoredMarketOptions);
 	const [searchQuery, setSearchQuery] = useState<string>("");
 	const [exactMatch, setExactMatch] = useState<boolean>(false);
+	const [hideUnavailable, setHideUnavailable] = useState(
+		marketOptions.hideUnavailable,
+	);
 	const [selectedLocation, setSelectedLocation] = useState<string | null>(
 		marketOptions.location === ALL_LOCATIONS_ID ? null : marketOptions.location,
 	);
@@ -842,9 +853,10 @@ const VendorsList = ({ loggedIn }: { loggedIn: boolean }) => {
 				view: vendorViewMode,
 				location: selectedLocation || ALL_LOCATIONS_ID,
 				side: orderTypeFilter.toLowerCase(),
+				hideUnavailable,
 			}),
 		);
-	}, [vendorViewMode, selectedLocation, orderTypeFilter]);
+	}, [vendorViewMode, selectedLocation, orderTypeFilter, hideUnavailable]);
 
 	useEffect(() => {
 		const frameId = requestAnimationFrame(() => {
@@ -1055,24 +1067,50 @@ const VendorsList = ({ loggedIn }: { loggedIn: boolean }) => {
 		[sortedVendors],
 	);
 
+	const visibleVendorsWithOrders = useMemo(
+		() =>
+			vendorsWithOrders
+				.map((vendor) => ({
+					...vendor,
+					orders: hideUnavailable
+						? vendor.orders.flatMap((order) => {
+								if (!order.location?.length) {
+									return isUnavailableOrder(
+										order.available ?? order.quantity,
+										undefined,
+									)
+										? []
+										: [order];
+								}
+								const locations = order.location.filter(
+									(location) => location.available !== 0,
+								);
+								return locations.length
+									? [{ ...order, location: locations }]
+									: [];
+							})
+						: vendor.orders,
+				}))
+				.filter((vendor) => vendor.orders.length > 0),
+		[vendorsWithOrders, hideUnavailable],
+	);
+
 	// Extract unique locations dynamically based on search and order type filters
 	const allLocations = useMemo(() => {
 		const locs = new Map<string, LocationOption>();
 
-		vendorsWithOrders.forEach((v) => {
+		visibleVendorsWithOrders.forEach((v) => {
 			v.orders?.forEach((o) => {
 				if (matchesOrderFilters(v.vendor, o)) {
 					o.location?.forEach((l: Location) => {
-						if (hasAvailableStock(l)) {
-							const locationId = l.location_code?.trim();
-							const locationName = l.location_name?.trim();
-							const optionId = locationId || locationName;
-							if (optionId) {
-								locs.set(optionId, {
-									id: optionId,
-									name: locationName || optionId,
-								});
-							}
+						const locationId = l.location_code?.trim();
+						const locationName = l.location_name?.trim();
+						const optionId = locationId || locationName;
+						if (optionId) {
+							locs.set(optionId, {
+								id: optionId,
+								name: locationName || optionId,
+							});
 						}
 					});
 				}
@@ -1080,13 +1118,13 @@ const VendorsList = ({ loggedIn }: { loggedIn: boolean }) => {
 		});
 
 		return Array.from(locs.values());
-	}, [vendorsWithOrders, matchesOrderFilters]);
+	}, [visibleVendorsWithOrders, matchesOrderFilters]);
 
 	// Filter Logic for Grid View
 	const preparedFilteredVendors = useMemo(() => {
 		const result: ReturnType<typeof prepareVendorStore>[] = [];
 
-		for (const vendorStore of vendorsWithOrders) {
+		for (const vendorStore of visibleVendorsWithOrders) {
 			const preparedVendor = prepareVendorStore(vendorStore, cxPriceLookup);
 
 			const filterOrders = (orders: typeof preparedVendor.buyOrders) => {
@@ -1097,8 +1135,7 @@ const VendorsList = ({ loggedIn }: { loggedIn: boolean }) => {
 					.filter(
 						(order) =>
 							selectedLocation === null ||
-							filterAvailableLocations(order.item.location, selectedLocation)
-								.length > 0,
+							filterLocations(order.item.location, selectedLocation).length > 0,
 					)
 					.map((order) =>
 						selectedLocation === null
@@ -1107,7 +1144,7 @@ const VendorsList = ({ loggedIn }: { loggedIn: boolean }) => {
 									...order,
 									item: {
 										...order.item,
-										location: filterAvailableLocations(
+										location: filterLocations(
 											order.item.location,
 											selectedLocation,
 										),
@@ -1129,7 +1166,12 @@ const VendorsList = ({ loggedIn }: { loggedIn: boolean }) => {
 		}
 
 		return result;
-	}, [vendorsWithOrders, selectedLocation, cxPriceLookup, matchesOrderFilters]);
+	}, [
+		visibleVendorsWithOrders,
+		selectedLocation,
+		cxPriceLookup,
+		matchesOrderFilters,
+	]);
 
 	const tableRows = useMemo(() => {
 		return preparedFilteredVendors
@@ -1183,9 +1225,7 @@ const VendorsList = ({ loggedIn }: { loggedIn: boolean }) => {
 				const askRows = sellOrders.flatMap((order) => buildRows(order, "Ask"));
 				const bidRows = buyOrders.flatMap((order) => buildRows(order, "Bid"));
 
-				return [...askRows, ...bidRows].filter(
-					(row) => typeof row.quantity !== "number" || row.quantity > 0,
-				);
+				return [...askRows, ...bidRows];
 			})
 			.sort((a, b) => {
 				const materialComparison = a.material.localeCompare(
@@ -1247,9 +1287,11 @@ const VendorsList = ({ loggedIn }: { loggedIn: boolean }) => {
 						sx={{
 							fontWeight: "bold",
 							color:
-								row.orderType === "sell"
-									? theme.palette.warning.main
-									: theme.palette.info.main,
+								row.quantity === 0
+									? theme.palette.error.main
+									: row.orderType === "sell"
+										? theme.palette.warning.main
+										: theme.palette.info.main,
 						}}
 					>
 						{formatAmount(Number(value))}
@@ -1420,6 +1462,9 @@ const VendorsList = ({ loggedIn }: { loggedIn: boolean }) => {
 			disableColumnSorting
 			disableRowSelectionOnClick
 			localeText={{ noRowsLabel: "No results" }}
+			getRowClassName={({ row }) =>
+				row.quantity === 0 ? "unavailable-order" : ""
+			}
 			sx={{
 				border: "none",
 				"& .MuiDataGrid-row": {
@@ -1469,6 +1514,10 @@ const VendorsList = ({ loggedIn }: { loggedIn: boolean }) => {
 				width: "100%",
 				display: "flex",
 				flexDirection: "column",
+				"& .unavailable-order": {
+					opacity: 0.5,
+					filter: "grayscale(100%)",
+				},
 			}}
 		>
 			{/* Search and Action Bar */}
@@ -1622,6 +1671,34 @@ const VendorsList = ({ loggedIn }: { loggedIn: boolean }) => {
 							},
 						}}
 					/>
+					<Tooltip title="Hide materials if vendor has/wants 0">
+						<ToggleButton
+							value="hide-unavailable"
+							selected={hideUnavailable}
+							onChange={() => setHideUnavailable((prev) => !prev)}
+							aria-label="Hide Unavailable"
+							sx={{
+								height: 40,
+								px: 1.5,
+								textTransform: "none",
+								gap: 0.5,
+								whiteSpace: "nowrap",
+								order: 3,
+								"&.Mui-selected": {
+									color: theme.palette.primary.light,
+									backgroundColor: "transparent",
+									"&:hover": { backgroundColor: "transparent" },
+								},
+							}}
+						>
+							{hideUnavailable ? (
+								<SquareCheck className="inline-icon" />
+							) : (
+								<Square className="inline-icon" />
+							)}
+							Hide Unavailable
+						</ToggleButton>
+					</Tooltip>
 
 					<Box
 						sx={{
