@@ -1332,9 +1332,7 @@ const VendorsList = ({ loggedIn }: { loggedIn: boolean }) => {
 				renderCell: ({ row }) => (
 					<Box sx={{ display: "flex", alignItems: "right", gap: 0.5 }}>
 						{row.corpStats && (
-							<Box sx={{ display: { xs: "none", lg: "contents" } }}>
-								<PriceComparisonBadge label="COSM" stats={row.corpStats} />
-							</Box>
+							<PriceComparisonBadge label="COSM" stats={row.corpStats} />
 						)}
 						{row.cxStats && (
 							<PriceComparisonBadge label="CX" stats={row.cxStats} />
@@ -1363,7 +1361,9 @@ const VendorsList = ({ loggedIn }: { loggedIn: boolean }) => {
 						)}
 						<Typography variant="body2">
 							<Box component="span" sx={{ display: { lg: "none" } }}>
-								{row.locCode || formatLocation(row.locName, row.locCode)}
+								{row.locCode === HORTUS_LOCATION_CODE
+									? "Hortus"
+									: row.locName || row.locCode}
 							</Box>
 							<Box
 								component="span"
@@ -1447,6 +1447,10 @@ const VendorsList = ({ loggedIn }: { loggedIn: boolean }) => {
 				),
 		[tableColumns],
 	);
+	const narrowTableColumns = useMemo(
+		() => compactTableColumns.filter(({ field }) => field !== "price"),
+		[compactTableColumns],
+	);
 	const renderTable = (columns: GridColDef[]) => (
 		<DataGrid
 			rows={tableRows}
@@ -1525,290 +1529,278 @@ const VendorsList = ({ loggedIn }: { loggedIn: boolean }) => {
 				<Box
 					sx={{
 						width: "100%",
-						display: "flex",
-						flexDirection: { xs: "column", md: "row" },
-						alignItems: { xs: "stretch", md: "center" },
+						display: "grid",
+						gridTemplateColumns: {
+							xs: "minmax(0, 1fr)",
+							lg: "auto auto minmax(0, 1fr) minmax(0, 1fr) auto auto",
+						},
+						alignItems: "center",
 						gap: 1.5,
 					}}
 				>
 					<Box
 						sx={{
-							display: "flex",
+							display: { xs: "flex", lg: "contents" },
+							alignItems: "center",
 							gap: 1.5,
-							flexDirection: { xs: "column", sm: "row" },
-							order: 1,
 						}}
 					>
-						<ToggleButtonGroup
-							value={vendorViewMode}
-							exclusive
-							fullWidth
-							onChange={(_event, newValue: "grid" | "table" | null) => {
-								if (newValue) {
-									handleViewModeChange(newValue);
-								}
-							}}
-							size="small"
-							aria-label="Vendor view mode"
+						<Box
 							sx={{
-								height: 40,
-								borderRadius: "12px",
-								"& .MuiToggleButtonGroup-grouped": {
-									"&:hover": {
-										background: alpha(theme.palette.primary.main, 0.5),
-									},
-									"&.Mui-selected": {
-										background: alpha(theme.palette.background.default, 0.8),
-										color: theme.palette.primary.light,
-										pointerEvents: "none",
-										"&:hover": {
-											background: alpha(theme.palette.background.default, 0.9),
-										},
-									},
-								},
+								display: "flex",
 							}}
 						>
-							<ToggleButton
-								value="grid"
+							<ToggleButtonGroup
+								value={vendorViewMode}
+								exclusive
+								onChange={(_event, newValue: "grid" | "table" | null) => {
+									if (newValue) {
+										handleViewModeChange(newValue);
+									}
+								}}
 								size="small"
-								aria-label="Grid view"
-								sx={{ px: 1.5, textTransform: "none" }}
-							>
-								Grid
-							</ToggleButton>
-							<ToggleButton
-								value="table"
-								size="small"
-								aria-label="Table view"
-								sx={{ px: 1.5, textTransform: "none" }}
-							>
-								Table
-							</ToggleButton>
-						</ToggleButtonGroup>
-					</Box>
-
-					<TextField
-						fullWidth
-						variant="outlined"
-						size="small"
-						inputRef={searchInputRef}
-						placeholder="Search…"
-						value={searchQuery}
-						onChange={(e) => setSearchQuery(e.target.value)}
-						sx={{
-							flexGrow: 1,
-							order: 3,
-							"& .MuiOutlinedInput-root": {
-								height: 40,
-								bgcolor: alpha(theme.palette.background.default, 0.5),
-								backdropFilter: "blur(5px)",
-								borderRadius: "12px",
-								"& fieldset": {
-									borderColor: alpha(theme.palette.common.white, 0.1),
-								},
-								"&:hover fieldset": { borderColor: theme.palette.primary.main },
-								"&.Mui-focused fieldset": {
-									borderColor: theme.palette.primary.main,
-								},
-								color: theme.palette.text.primary,
-							},
-						}}
-						slotProps={{
-							input: {
-								startAdornment: (
-									<InputAdornment position="start">
-										<Search
-											className="inline-icon"
-											color={theme.palette.primary.main}
-										/>
-									</InputAdornment>
-								),
-								endAdornment: (
-									<InputAdornment position="end">
-										<Box
-											sx={{
-												display: "flex",
-												alignItems: "center",
-												gap: 0.5,
-											}}
-										>
-											{searchQuery ? (
-												<>
-													<Tooltip title="Clear Search">
-														<IconButton
-															size="small"
-															aria-label="Clear material search"
-															onClick={() => setSearchQuery("")}
-														>
-															<X className="inline-icon" />
-														</IconButton>
-													</Tooltip>
-												</>
-											) : null}
-											<Tooltip
-												title={
-													exactMatch ? "Exact Match: ON" : "Exact Match: OFF"
-												}
-											>
-												<IconButton
-													size="small"
-													onClick={() => setExactMatch((prev) => !prev)}
-													sx={{
-														color: exactMatch
-															? "primary.main"
-															: "text.secondary",
-														bgcolor: exactMatch
-															? alpha(theme.palette.primary.main, 0.15)
-															: "transparent",
-													}}
-												>
-													<CenterFocusStrongIcon className="inline-icon" />
-												</IconButton>
-											</Tooltip>
-										</Box>
-									</InputAdornment>
-								),
-							},
-						}}
-					/>
-					<Tooltip title="Hide materials if vendor has/wants 0">
-						<ToggleButton
-							value="hide-unavailable"
-							selected={hideUnavailable}
-							onChange={() => setHideUnavailable((prev) => !prev)}
-							aria-label="Hide Unavailable"
-							sx={{
-								height: 40,
-								px: 1.5,
-								textTransform: "none",
-								gap: 0.5,
-								whiteSpace: "nowrap",
-								order: 3,
-								"&.Mui-selected": {
-									color: theme.palette.primary.light,
-									backgroundColor: "transparent",
-									"&:hover": { backgroundColor: "transparent" },
-								},
-							}}
-						>
-							{hideUnavailable ? (
-								<SquareCheck className="inline-icon" />
-							) : (
-								<Square className="inline-icon" />
-							)}
-							Hide Unavailable
-						</ToggleButton>
-					</Tooltip>
-
-					<Box
-						sx={{
-							display: "flex",
-							gap: 1.5,
-							flexDirection: { xs: "column", sm: "row" },
-							order: 2,
-						}}
-					>
-						<ToggleButtonGroup
-							value={orderTypeFilter}
-							exclusive
-							fullWidth
-							onChange={(_event, newValue: "ASK" | "BID" | "BOTH" | null) => {
-								if (newValue) {
-									setOrderTypeFilter(newValue);
-								}
-							}}
-							size="small"
-							aria-label="Order type filter"
-							sx={{
-								height: 40,
-								borderRadius: "12px",
-								"& .MuiToggleButtonGroup-grouped": {
-									"&:hover": {
-										background: alpha(theme.palette.primary.main, 0.5),
-									},
-									"&.Mui-selected": {
-										background: alpha(theme.palette.background.default, 0.8),
-										color: theme.palette.primary.light,
-										"&:hover": {
-											background: alpha(theme.palette.background.default, 1),
-										},
-									},
-								},
-							}}
-						>
-							<Tooltip title="Asks and Bids together">
-								<ToggleButton
-									value="BOTH"
-									size="small"
-									aria-label="Show both ask and bid"
-									sx={{ px: 1.5, textTransform: "none" }}
-								>
-									All
-								</ToggleButton>
-							</Tooltip>
-							<Tooltip title="You buy from the vendor">
-								<ToggleButton
-									value="ASK"
-									size="small"
-									aria-label="Show only ask"
-									sx={{ px: 1.5, textTransform: "none" }}
-								>
-									Ask
-								</ToggleButton>
-							</Tooltip>
-							<Tooltip title="You sell to the vendor">
-								<ToggleButton
-									value="BID"
-									size="small"
-									aria-label="Show only bid"
-									sx={{ px: 1.5, textTransform: "none" }}
-								>
-									Bid
-								</ToggleButton>
-							</Tooltip>
-						</ToggleButtonGroup>
-						<LocationFilter
-							locations={allLocations}
-							value={selectedLocation}
-							onChange={setSelectedLocation}
-							sx={{
-								flexGrow: { xs: 1, sm: 0 },
-								minWidth: { sm: 260 },
-								order: -1,
-							}}
-						/>
-					</Box>
-					<Box
-						sx={{
-							display: "flex",
-							gap: 1,
-							justifyContent: { xs: "center", sm: "flex-end" },
-							order: 4,
-						}}
-					>
-						<Tooltip title="Shopping List">
-							<IconButton
-								onClick={handleOpenShoppingListModal}
+								aria-label="Vendor view mode"
 								sx={{
 									height: 40,
-									width: 40,
-									borderRadius: "50%",
-									color: "white",
-									bgcolor: "primary.main",
-									boxShadow: "0 4px 10px rgba(0,0,0,0.5)",
-									"&:hover": { bgcolor: "primary.dark" },
+									borderRadius: "12px",
+									"& .MuiToggleButtonGroup-grouped": {
+										"&:hover": {
+											background: alpha(theme.palette.primary.main, 0.5),
+										},
+										"&.Mui-selected": {
+											background: alpha(theme.palette.background.default, 0.8),
+											color: theme.palette.primary.light,
+											pointerEvents: "none",
+											"&:hover": {
+												background: alpha(
+													theme.palette.background.default,
+													0.9,
+												),
+											},
+										},
+									},
 								}}
 							>
-								<ShoppingBasket className="inline-icon" />
-							</IconButton>
-						</Tooltip>
-						{loggedIn && (
-							<Tooltip title="Your Store">
+								<ToggleButton
+									value="grid"
+									size="small"
+									aria-label="Grid view"
+									sx={{ px: 1.5, textTransform: "none" }}
+								>
+									Grid
+								</ToggleButton>
+								<ToggleButton
+									value="table"
+									size="small"
+									aria-label="Table view"
+									sx={{ px: 1.5, textTransform: "none" }}
+								>
+									Table
+								</ToggleButton>
+							</ToggleButtonGroup>
+						</Box>
+						<Box sx={{ display: "flex" }}>
+							<ToggleButtonGroup
+								value={orderTypeFilter}
+								exclusive
+								onChange={(_event, newValue: "ASK" | "BID" | "BOTH" | null) => {
+									if (newValue) setOrderTypeFilter(newValue);
+								}}
+								size="small"
+								aria-label="Order type filter"
+								sx={{
+									height: 40,
+									borderRadius: "12px",
+									"& .MuiToggleButtonGroup-grouped": {
+										"&:hover": {
+											background: alpha(theme.palette.primary.main, 0.5),
+										},
+										"&.Mui-selected": {
+											background: alpha(theme.palette.background.default, 0.8),
+											color: theme.palette.primary.light,
+											"&:hover": {
+												background: alpha(theme.palette.background.default, 1),
+											},
+										},
+									},
+								}}
+							>
+								<Tooltip title="Asks and Bids together">
+									<ToggleButton
+										value="BOTH"
+										size="small"
+										aria-label="Show both ask and bid"
+										sx={{ px: 1.5, textTransform: "none" }}
+									>
+										All
+									</ToggleButton>
+								</Tooltip>
+								<Tooltip title="You buy from the vendor">
+									<ToggleButton
+										value="ASK"
+										size="small"
+										aria-label="Show only ask"
+										sx={{ px: 1.5, textTransform: "none" }}
+									>
+										Ask
+									</ToggleButton>
+								</Tooltip>
+								<Tooltip title="You sell to the vendor">
+									<ToggleButton
+										value="BID"
+										size="small"
+										aria-label="Show only bid"
+										sx={{ px: 1.5, textTransform: "none" }}
+									>
+										Bid
+									</ToggleButton>
+								</Tooltip>
+							</ToggleButtonGroup>
+						</Box>
+						<Box sx={{ flex: "1 1 0", minWidth: 0 }}>
+							<LocationFilter
+								locations={allLocations}
+								value={selectedLocation}
+								onChange={setSelectedLocation}
+								sx={{ width: "100%" }}
+							/>
+						</Box>
+					</Box>
+					<Box
+						sx={{
+							display: { xs: "flex", lg: "contents" },
+							alignItems: "center",
+							gap: 1.5,
+						}}
+					>
+						<Box sx={{ flex: "1 1 0", minWidth: 0 }}>
+							<TextField
+								fullWidth
+								variant="outlined"
+								size="small"
+								inputRef={searchInputRef}
+								placeholder="Search…"
+								value={searchQuery}
+								onChange={(e) => setSearchQuery(e.target.value)}
+								sx={{
+									"& .MuiOutlinedInput-root": {
+										height: 40,
+										bgcolor: alpha(theme.palette.background.default, 0.5),
+										backdropFilter: "blur(5px)",
+										borderRadius: "12px",
+										"& fieldset": {
+											borderColor: alpha(theme.palette.common.white, 0.1),
+										},
+										"&:hover fieldset": {
+											borderColor: theme.palette.primary.main,
+										},
+										"&.Mui-focused fieldset": {
+											borderColor: theme.palette.primary.main,
+										},
+										color: theme.palette.text.primary,
+									},
+								}}
+								slotProps={{
+									input: {
+										startAdornment: (
+											<InputAdornment position="start">
+												<Search
+													className="inline-icon"
+													color={theme.palette.primary.main}
+												/>
+											</InputAdornment>
+										),
+										endAdornment: (
+											<InputAdornment position="end">
+												<Box
+													sx={{
+														display: "flex",
+														alignItems: "center",
+														gap: 0.5,
+													}}
+												>
+													{searchQuery ? (
+														<>
+															<Tooltip title="Clear Search">
+																<IconButton
+																	size="small"
+																	aria-label="Clear material search"
+																	onClick={() => setSearchQuery("")}
+																>
+																	<X className="inline-icon" />
+																</IconButton>
+															</Tooltip>
+														</>
+													) : null}
+													<Tooltip
+														title={
+															exactMatch
+																? "Exact Match: ON"
+																: "Exact Match: OFF"
+														}
+													>
+														<IconButton
+															size="small"
+															onClick={() => setExactMatch((prev) => !prev)}
+															sx={{
+																color: exactMatch
+																	? "primary.main"
+																	: "text.secondary",
+																bgcolor: exactMatch
+																	? alpha(theme.palette.primary.main, 0.15)
+																	: "transparent",
+															}}
+														>
+															<CenterFocusStrongIcon className="inline-icon" />
+														</IconButton>
+													</Tooltip>
+												</Box>
+											</InputAdornment>
+										),
+									},
+								}}
+							/>
+						</Box>
+						<Box>
+							<Tooltip title="Hide materials if vendor has/wants 0">
+								<ToggleButton
+									value="hide-unavailable"
+									selected={hideUnavailable}
+									onChange={() => setHideUnavailable((prev) => !prev)}
+									aria-label="Hide Unavailable"
+									sx={{
+										height: 40,
+										px: 1.5,
+										textTransform: "none",
+										gap: 0.5,
+										whiteSpace: "nowrap",
+										"&.Mui-selected": {
+											color: theme.palette.primary.light,
+											backgroundColor: "transparent",
+											"&:hover": { backgroundColor: "transparent" },
+										},
+									}}
+								>
+									{hideUnavailable ? (
+										<SquareCheck className="inline-icon" />
+									) : (
+										<Square className="inline-icon" />
+									)}
+									Hide Unavailable
+								</ToggleButton>
+							</Tooltip>
+						</Box>
+
+						<Box
+							sx={{
+								display: "flex",
+								gap: 1,
+								justifyContent: "flex-end",
+							}}
+						>
+							<Tooltip title="Shopping List">
 								<IconButton
-									onClick={
-										hasVendorStore ? handleOpenEditModal : handleOpenCreateModal
-									}
-									disabled={isCheckingStore}
+									onClick={handleOpenShoppingListModal}
 									sx={{
 										height: 40,
 										width: 40,
@@ -1817,15 +1809,38 @@ const VendorsList = ({ loggedIn }: { loggedIn: boolean }) => {
 										bgcolor: "primary.main",
 										boxShadow: "0 4px 10px rgba(0,0,0,0.5)",
 										"&:hover": { bgcolor: "primary.dark" },
-										"&.Mui-disabled": {
-											bgcolor: alpha(theme.palette.primary.main, 0.5),
-										},
 									}}
 								>
-									<Store className="inline-icon" />
+									<ShoppingBasket className="inline-icon" />
 								</IconButton>
 							</Tooltip>
-						)}
+							{loggedIn && (
+								<Tooltip title="Your Store">
+									<IconButton
+										onClick={
+											hasVendorStore
+												? handleOpenEditModal
+												: handleOpenCreateModal
+										}
+										disabled={isCheckingStore}
+										sx={{
+											height: 40,
+											width: 40,
+											borderRadius: "50%",
+											color: "white",
+											bgcolor: "primary.main",
+											boxShadow: "0 4px 10px rgba(0,0,0,0.5)",
+											"&:hover": { bgcolor: "primary.dark" },
+											"&.Mui-disabled": {
+												bgcolor: alpha(theme.palette.primary.main, 0.5),
+											},
+										}}
+									>
+										<Store className="inline-icon" />
+									</IconButton>
+								</Tooltip>
+							)}
+						</Box>
 					</Box>
 				</Box>
 			</Box>
@@ -1837,7 +1852,15 @@ const VendorsList = ({ loggedIn }: { loggedIn: boolean }) => {
 			>
 				{vendorViewMode === "table" ? (
 					<Box sx={{ height: "100%", width: "100%" }}>
-						<Box sx={{ display: { xs: "block", lg: "none" }, height: "100%" }}>
+						<Box sx={{ display: { xs: "block", md: "none" }, height: "100%" }}>
+							{renderTable(narrowTableColumns)}
+						</Box>
+						<Box
+							sx={{
+								display: { xs: "none", md: "block", lg: "none" },
+								height: "100%",
+							}}
+						>
 							{renderTable(compactTableColumns)}
 						</Box>
 						<Box sx={{ display: { xs: "none", lg: "block" }, height: "100%" }}>
