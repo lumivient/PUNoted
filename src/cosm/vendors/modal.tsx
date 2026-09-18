@@ -1,6 +1,7 @@
 import React from "react";
 import {
 	Button,
+	type ButtonProps,
 	Dialog,
 	DialogActions,
 	DialogContent,
@@ -12,27 +13,21 @@ interface ModalProps {
 	onClose: () => void;
 	title: string;
 	children: React.ReactNode;
-	onAction?: () => void;
 	actionLabel?: string;
+	onAction?: () => void;
+	color?: ButtonProps["color"];
 	cancelLabel?: string;
-	type?: "positive" | "negative" | "neutral";
 }
-
-const actionColors = {
-	positive: "success",
-	negative: "error",
-	neutral: "primary",
-} as const;
 
 export const Modal: React.FC<ModalProps> = ({
 	open,
 	onClose,
 	title,
 	children,
-	onAction,
 	actionLabel,
+	onAction,
+	color = "primary",
 	cancelLabel = "Cancel",
-	type = "neutral",
 }) => (
 	<Dialog
 		open={open}
@@ -67,7 +62,7 @@ export const Modal: React.FC<ModalProps> = ({
 				<Button
 					onClick={onAction}
 					variant="contained"
-					color={actionColors[type]}
+					color={color}
 					sx={{ fontWeight: "bold" }}
 				>
 					{actionLabel}

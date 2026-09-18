@@ -478,10 +478,10 @@ const EditVendorStoreModal: React.FC<EditVendorStoreModalProps> = ({
 			<Modal
 				open={deleteConfirmOpen}
 				onClose={() => setDeleteConfirmOpen(false)}
-				onAction={handleDeleteVendorStore}
 				title="Delete Store?"
 				actionLabel="Delete"
-				type="negative"
+				onAction={handleDeleteVendorStore}
+				color="error"
 			>
 				<Typography>
 					You can create a new store later but existing orders will be deleted.
