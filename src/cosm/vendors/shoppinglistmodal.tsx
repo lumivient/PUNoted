@@ -19,7 +19,6 @@ import {
 } from "@mui/material";
 import {
 	ShoppingBasket,
-	ShoppingCart,
 	Handshake,
 	CircleHelp,
 	X,
@@ -101,15 +100,14 @@ type CxPriceLookup = Record<string, Record<string, unknown>>;
  * Represents an item added to the shopping list.
  */
 interface ShoppingListItem {
-	materialid: string;
 	materialticker: string;
 	quantity: number;
-	fixedprice: number;
 	frontendId: string;
 	vendorPriority: string[];
 }
 
 const SHOPPING_LIST_STORAGE_KEY = "cosmShoppingList";
+
 const getStoredShoppingList = (): ShoppingListItem[] => {
 	try {
 		const list: unknown = JSON.parse(
@@ -126,9 +124,8 @@ const getStoredShoppingList = (): ShoppingListItem[] => {
  */
 interface ShoppingSummaryItem {
 	vendorid: string;
-	vendorname: string;
 	gamename: string;
-	companycode?: string;
+	ticker: string;
 	amount: number;
 	price: number;
 	totalPrice: number;
@@ -145,6 +142,18 @@ interface SummaryLocationGroup {
 	}>;
 }
 
+export const formatContd = (
+	locationCode: string,
+	items: Pick<ShoppingSummaryItem, "amount" | "ticker" | "price">[],
+) =>
+	[
+		"template\tBUY",
+		"currency\tICA",
+		`location\t${locationCode}`,
+		"deadline\t5",
+		...items.map((item) => `${item.amount}\t${item.ticker}\t${item.price}`),
+	].join("\n");
+
 // --- Formatters ---
 /**
  * Formats a numeric price into a localized string with "ICA" appended.
@@ -152,11 +161,11 @@ interface SummaryLocationGroup {
  * @param {number | null | undefined} p - The price to format.
  * @returns {string} The formatted price string.
  */
-const formatPrice = (p: number | null | undefined, unit = "ICA"): string =>
+const formatPrice = (p: number | null | undefined): string =>
 	p == null || isNaN(p)
 		? "N/A"
 		: new Intl.NumberFormat("en-US", { maximumFractionDigits: 2 }).format(p) +
-			` ${unit}`;
+			" ICA";
 
 /**
  * Formats a numeric amount into a localized string without fraction digits.
@@ -793,7 +802,8 @@ const SummaryVendorGroup: React.FC<{
 	gameName: string;
 	items: ShoppingSummaryItem[];
 	total: number;
-}> = ({ gameName, items, total }) => {
+	onCopyContract: () => void;
+}> = ({ gameName, items, total, onCopyContract }) => {
 	const theme = useTheme();
 	const formattedTotal = formatPrice(total);
 
@@ -810,38 +820,51 @@ const SummaryVendorGroup: React.FC<{
 			{/* Header: Vendor Name & Group Total */}
 			<Box
 				sx={{
-					display: "flex",
-					justifyContent: "space-between",
+					display: "grid",
+					gridTemplateColumns: "minmax(0, 1fr) auto",
 					alignItems: "center",
 					p: 1.25,
 					bgcolor: alpha(theme.palette.background.default, 0.4),
 					borderBottom: `1px solid ${alpha(theme.palette.divider, 0.05)}`,
 				}}
 			>
-				<Typography variant="subtitle2" sx={{ fontWeight: "bold" }}>
-					<Store className="inline-icon" color={theme.palette.primary.main} />{" "}
-					{gameName}
-				</Typography>
-				<Typography variant="subtitle2">
-					{formattedTotal === "N/A" ? (
-						formattedTotal
-					) : (
-						<>
-							<Box
-								component="span"
-								sx={{ color: theme.palette.warning.main, fontWeight: "bold" }}
-							>
-								{formattedTotal.slice(0, -4)}
-							</Box>{" "}
-							<Box
-								component="span"
-								sx={{ color: "text.primary", fontSize: "0.7rem" }}
-							>
-								ICA
-							</Box>
-						</>
-					)}
-				</Typography>
+				<Box>
+					<Typography variant="subtitle2" sx={{ fontWeight: "bold" }}>
+						<Store className="inline-icon" color={theme.palette.primary.main} />{" "}
+						{gameName}
+					</Typography>
+					<Typography variant="subtitle2">
+						{formattedTotal === "N/A" ? (
+							formattedTotal
+						) : (
+							<>
+								<Box
+									component="span"
+									sx={{ color: theme.palette.warning.main, fontWeight: "bold" }}
+								>
+									{formattedTotal.slice(0, -4)}
+								</Box>{" "}
+								<Box
+									component="span"
+									sx={{ color: "text.primary", fontSize: "0.7rem" }}
+								>
+									ICA
+								</Box>
+							</>
+						)}
+					</Typography>
+				</Box>
+				<Tooltip title="Paste in Sheets/Excel field in CONTD">
+					<Button
+						size="small"
+						variant="contained"
+						startIcon={<ContentCopy className="inline-icon" />}
+						onClick={onCopyContract}
+						sx={{ fontWeight: "bold" }}
+					>
+						COPY
+					</Button>
+				</Tooltip>
 			</Box>
 
 			{/* List of Items */}
@@ -921,21 +944,11 @@ const SummaryVendorGroup: React.FC<{
 
 const OrderSummaryPanel: React.FC<{
 	groups: SummaryLocationGroup[];
-	shoppingListLength: number;
-	isCopied: boolean;
-	onCopy: () => void;
+	onCopyContract: (locationCode: string, items: ShoppingSummaryItem[]) => void;
 	onClose?: () => void;
 	insufficientStock: boolean;
 	grandTotal: number;
-}> = ({
-	groups,
-	shoppingListLength,
-	isCopied,
-	onCopy,
-	onClose,
-	insufficientStock,
-	grandTotal,
-}) => {
+}> = ({ groups, onCopyContract, onClose, insufficientStock, grandTotal }) => {
 	const theme = useTheme();
 
 	return (
@@ -968,32 +981,17 @@ const OrderSummaryPanel: React.FC<{
 				>
 					CONTRACT DETAILS
 				</Typography>
-				<Box sx={{ display: "flex", gap: 1 }}>
-					<Tooltip title="Copy to Clipboard">
-						<Button
-							size="small"
-							variant="contained"
-							color={isCopied ? "success" : "primary"}
-							startIcon={<ContentCopy className="inline-icon" />}
-							disabled={shoppingListLength === 0}
-							sx={{ fontWeight: "bold" }}
-							onClick={onCopy}
-						>
-							COPY
-						</Button>
-					</Tooltip>
-					{onClose && (
-						<Button
-							size="small"
-							variant="outlined"
-							startIcon={<X className="inline-icon" />}
-							onClick={onClose}
-							sx={{ fontWeight: "bold" }}
-						>
-							CLOSE
-						</Button>
-					)}
-				</Box>
+				{onClose && (
+					<Button
+						size="small"
+						variant="outlined"
+						startIcon={<X className="inline-icon" />}
+						onClick={onClose}
+						sx={{ fontWeight: "bold" }}
+					>
+						CLOSE
+					</Button>
+				)}
 			</Box>
 			<Box sx={{ flex: 1, overflowY: "auto", p: 1.5, minHeight: "100px" }}>
 				{groups.length > 0 ? (
@@ -1047,6 +1045,9 @@ const OrderSummaryPanel: React.FC<{
 											gameName={vendor.gameName}
 											items={vendor.items}
 											total={vendor.total}
+											onCopyContract={() =>
+												onCopyContract(locationCode, vendor.items)
+											}
 										/>
 									))}
 								</Box>
@@ -1390,16 +1391,14 @@ const AvailableMaterialsPanel: React.FC<{
  * @param {boolean} props.open - Whether the modal is visible.
  * @param {() => void} props.handleClose - Callback to close the modal.
  * @param {VendorStore[]} props.vendors - The list of all known vendor stores to source from.
- * @param {boolean} props.isLoggedIn - Whether the current user is logged in.
  * @returns {React.ReactElement} The shopping list modal component.
  */
 const ShoppingListModal: React.FC<{
 	open: boolean;
 	handleClose: () => void;
 	vendors: VendorStore[];
-	isLoggedIn: boolean;
 	cxPriceLookup: CxPriceLookup;
-}> = ({ open, handleClose, vendors, isLoggedIn, cxPriceLookup }) => {
+}> = ({ open, handleClose, vendors, cxPriceLookup }) => {
 	const theme = useTheme();
 	const isMobile = useMediaQuery(theme.breakpoints.down("lg"));
 	const isCompact = useMediaQuery(theme.breakpoints.down("xl"));
@@ -1412,7 +1411,6 @@ const ShoppingListModal: React.FC<{
 	const [shoppingSummary, setShoppingSummary] = useState<ShoppingSummaryItem[]>(
 		[],
 	);
-	const [isCopied, setIsCopied] = useState(false);
 	const [showHelp, setShowHelp] = useState(false);
 	const [showSummary, setShowSummary] = useState(false);
 
@@ -1470,7 +1468,8 @@ const ShoppingListModal: React.FC<{
 						(location) =>
 							typeof location.available === "number" && location.available > 0,
 					);
-					if (locations.length === 0) return [order];
+					if (locations.length === 0)
+						return o.location ? [] : actualAvailable > 0 ? [order] : [];
 
 					let remainingAvailable = actualAvailable;
 					return locations.flatMap((location) => {
@@ -1526,6 +1525,19 @@ const ShoppingListModal: React.FC<{
 		);
 		return map;
 	}, [allSellOrders]);
+
+	useEffect(() => {
+		if (vendors.length === 0) return;
+		const availableTickers = new Set(
+			allSellOrders.map((order) => order.materialticker),
+		);
+		setShoppingList((prev) => {
+			const next = prev.filter((item) =>
+				availableTickers.has(item.materialticker),
+			);
+			return next.length === prev.length ? prev : next;
+		});
+	}, [allSellOrders, vendors.length]);
 
 	// 3. Aggregate for Available Materials (Min/Max + Vendor Count)
 	const availableMaterials = useMemo(() => {
@@ -1585,10 +1597,8 @@ const ShoppingListModal: React.FC<{
 			return [
 				...prev,
 				{
-					materialid: mat.materialid,
 					materialticker: mat.materialticker,
 					quantity: 1,
-					fixedprice: mat.fixedprice, // Defaults to lowest
 					frontendId: uuidv4(),
 					vendorPriority: [],
 				},
@@ -1658,9 +1668,7 @@ const ShoppingListModal: React.FC<{
 					const displayPrice = getOrderPrice(order).price;
 					summary.push({
 						vendorid: order.vendorid,
-						vendorname: order.vendorname,
 						gamename: order.gamename,
-						companycode: order.companycode,
 						ticker: order.materialticker,
 						amount: take,
 						price: displayPrice,
@@ -1736,33 +1744,12 @@ const ShoppingListModal: React.FC<{
 			}));
 	}, [shoppingSummary]);
 
-	// --- UTILS ---
-	const handleCopy = async () => {
-		const text = [
-			...groupedSummary.map(({ location, vendors }) => {
-				const locationName =
-					location?.location_name || location?.location_code || "Unknown";
-				const locationCode = location?.location_code || locationName;
-				return [
-					`-- ${formatLocationLabel(locationName, locationCode).toUpperCase()} --`,
-					...vendors.flatMap((vendor) => [
-						"",
-						`Vendor: ${vendor.gameName}${vendor.items[0].companycode ? ` [${vendor.items[0].companycode}]` : ""} ${vendor.items[0].vendorname}`,
-						...vendor.items.map(
-							(item) =>
-								`- ${formatAmount(item.amount)} × [${item.ticker}] @ ${formatPrice(item.price, "ppu")} = ${formatPrice(item.totalPrice)}`,
-						),
-						`Total: ${formatPrice(vendor.total)}`,
-					]),
-				].join("\n");
-			}),
-			`GRAND TOTAL: ${formatPrice(grandTotal)}`,
-		].join("\n\n");
-
+	const handleCopyContract = async (
+		locationCode: string,
+		items: ShoppingSummaryItem[],
+	) => {
 		try {
-			await navigator.clipboard.writeText(text);
-			setIsCopied(true);
-			setTimeout(() => setIsCopied(false), 2000);
+			await navigator.clipboard.writeText(formatContd(locationCode, items));
 		} catch (e) {
 			console.error(e);
 		}
@@ -1977,9 +1964,7 @@ const ShoppingListModal: React.FC<{
 							>
 								<OrderSummaryPanel
 									groups={groupedSummary}
-									shoppingListLength={shoppingList.length}
-									isCopied={isCopied}
-									onCopy={handleCopy}
+									onCopyContract={handleCopyContract}
 									insufficientStock={insufficientStock}
 									grandTotal={grandTotal}
 								/>
@@ -2077,9 +2062,7 @@ const ShoppingListModal: React.FC<{
 				>
 					<OrderSummaryPanel
 						groups={groupedSummary}
-						shoppingListLength={shoppingList.length}
-						isCopied={isCopied}
-						onCopy={handleCopy}
+						onCopyContract={handleCopyContract}
 						onClose={() => setShowSummary(false)}
 						insufficientStock={insufficientStock}
 						grandTotal={grandTotal}
@@ -2099,7 +2082,7 @@ const ShoppingListModal: React.FC<{
 									className="inline-icon"
 									color={theme.palette.success.main}
 								/>{" "}
-								in the left panel to select the materials you need.
+								to select materials:
 								<Box
 									component="img"
 									src={shoppingListHelp1}
@@ -2108,8 +2091,8 @@ const ShoppingListModal: React.FC<{
 								/>
 							</li>
 							<li>
-								In the main panel, enter required quantities and check
-								Vendors/Locations for each material.
+								Enter the required quantities then check
+								Vendors and Locations:
 								<Box
 									component="img"
 									src={shoppingListHelp2}
@@ -2118,44 +2101,14 @@ const ShoppingListModal: React.FC<{
 								/>
 							</li>
 							<li>
-								The panel on the right shows everything you need to send a
-								contract to each vendor (
-								<strong>
-									<code>CONTD</code>
-								</strong>{" "}
-								buffer in APEX).
+								Contract details will be updated automatically:
 								<Box
 									component="img"
 									src={shoppingListHelp3}
 									alt="Order summary"
 									sx={helpImageSx}
 								/>
-							</li>
-						</ol>
-						<h3>
-							<strong>Contract Pro Tips</strong>
-						</h3>
-						<ol>
-							<li>Be careful not to send contracts with the wrong location.</li>
-							<li>
-								Change contract deadlines from 3 to 5 days as a courtesy to
-								people selling at reduced prices (they often fill in 24h
-								anyway).
-							</li>
-							<li>
-								Use the <ContentCopy className="inline-icon" />{" "}
-								<strong>COPY</strong> button and an{" "}
-								<strong>
-									<code>XIT NOTE</code>
-								</strong>{" "}
-								buffer (from{" "}
-								<a
-									href="https://com.prosperousuniverse.com/t/refined-prun-qol-extension-for-prosperous-universe/6760"
-									target="_blank"
-								>
-									rprun
-								</a>
-								) to speed up contract creation.
+								<strong>💡 Pro Tip</strong>: Click <ContentCopy className="inline-icon" /> <strong>COPY</strong> and paste into the <strong>Sheets/Excel</strong> input in <code><strong>CONTD</strong></code> for easy contract creation (requires <a href="https://com.prosperousuniverse.com/t/refined-prun-qol-extension-for-prosperous-universe/6760" target="_blank">Refined PrUn</a>).
 							</li>
 						</ol>
 					</Typography>
