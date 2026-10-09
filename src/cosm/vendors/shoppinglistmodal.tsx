@@ -261,10 +261,14 @@ const VendorPrioritySelector: React.FC<{
 	onUpdatePriority: (newPriority: string[]) => void;
 }> = React.memo(({ sortedVendors, sourcedVendorIds, onUpdatePriority }) => {
 	const theme = useTheme();
+	const vendorsWithStock = useMemo(
+		() => sortedVendors.filter((vendor) => vendor.quantity > 0),
+		[sortedVendors],
+	);
 
 	const moveVendor = useCallback(
 		(index: number, direction: -1 | 1) => {
-			const newOrder = sortedVendors.map(getSourceId);
+			const newOrder = vendorsWithStock.map(getSourceId);
 			const targetIndex = index + direction;
 			if (targetIndex < 0 || targetIndex >= newOrder.length) return;
 			[newOrder[index], newOrder[targetIndex]] = [
@@ -273,7 +277,7 @@ const VendorPrioritySelector: React.FC<{
 			];
 			onUpdatePriority(newOrder);
 		},
-		[sortedVendors, onUpdatePriority],
+		[vendorsWithStock, onUpdatePriority],
 	);
 
 	return (
@@ -286,7 +290,7 @@ const VendorPrioritySelector: React.FC<{
 				border: `1px solid ${alpha(theme.palette.divider, 0.1)}`,
 			}}
 		>
-			{sortedVendors.map((vendor, index) => {
+			{vendorsWithStock.map((vendor, index) => {
 				const isSourced = sourcedVendorIds.has(getSourceId(vendor));
 				const displayPrice = getOrderPrice(vendor).price;
 				const formattedPrice = formatPrice(displayPrice);
