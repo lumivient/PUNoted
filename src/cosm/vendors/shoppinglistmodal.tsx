@@ -2091,8 +2091,7 @@ const ShoppingListModal: React.FC<{
 								/>
 							</li>
 							<li>
-								Enter the required quantities then check
-								Vendors and Locations:
+								Enter the required quantities then check Vendors and Locations:
 								<Box
 									component="img"
 									src={shoppingListHelp2}
@@ -2108,7 +2107,20 @@ const ShoppingListModal: React.FC<{
 									alt="Order summary"
 									sx={helpImageSx}
 								/>
-								<strong>💡 Pro Tip</strong>: Click <ContentCopy className="inline-icon" /> <strong>COPY</strong> and paste into the <strong>Sheets/Excel</strong> input in <code><strong>CONTD</strong></code> for easy contract creation (requires <a href="https://com.prosperousuniverse.com/t/refined-prun-qol-extension-for-prosperous-universe/6760" target="_blank">Refined PrUn</a>).
+								<strong>💡 Pro Tip</strong>: Click{" "}
+								<ContentCopy className="inline-icon" /> <strong>COPY</strong>{" "}
+								and paste into the <strong>Sheets/Excel</strong> input in{" "}
+								<code>
+									<strong>CONTD</strong>
+								</code>{" "}
+								for easy contract creation (requires{" "}
+								<a
+									href="https://com.prosperousuniverse.com/t/refined-prun-qol-extension-for-prosperous-universe/6760"
+									target="_blank"
+								>
+									Refined PrUn
+								</a>
+								).
 							</li>
 						</ol>
 					</Typography>
