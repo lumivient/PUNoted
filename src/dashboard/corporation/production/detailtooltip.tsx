@@ -63,14 +63,18 @@ export const DetailTooltip = React.memo(
 		const [isOpen, setIsOpen] = useState(false);
 
 		// Resolve values whether using item/type or direct props
+		const ticker =
+			item?.ticker ||
+			(propsTitle && propsTitle.split(" ")[0].length <= 5
+				? propsTitle.split(" ")[0]
+				: "");
 		const isProd = type === "prod" || propsColor === "success";
-		const title =
-			propsTitle || (isProd ? "Producers Breakdown" : "Consumers Breakdown");
+		const roleLabel = isProd ? "PRODUCERS" : "CONSUMERS";
 		const accentColor = isProd ? "#81C784" : "#FF8A80";
 
-		// Sorting state for planets/locations inside expanded user rows
+		// Sorting state for users & planets
 		const [sortDir, setSortDir] = useState<"desc" | "asc">("desc");
-		// Expanded user company codes (default all expanded for quick visibility)
+		// Expanded user company codes (default false like CategoryCard drilldown)
 		const [expandedUsers, setExpandedUsers] = useState<Record<string, boolean>>(
 			{},
 		);
@@ -78,7 +82,7 @@ export const DetailTooltip = React.memo(
 		const toggleUserExpand = useCallback((player: string) => {
 			setExpandedUsers((prev) => ({
 				...prev,
-				[player]: prev[player] !== undefined ? !prev[player] : false,
+				[player]: !(prev[player] ?? false),
 			}));
 		}, []);
 
@@ -273,9 +277,11 @@ export const DetailTooltip = React.memo(
 				});
 			});
 
-			// Sort user groups by total amount descending
-			const groups = Array.from(userMap.values()).sort(
-				(a, b) => b.totalAmount - a.totalAmount,
+			// Sort user groups by total amount according to sortDir
+			const groups = Array.from(userMap.values()).sort((a, b) =>
+				sortDir === "desc"
+					? b.totalAmount - a.totalAmount
+					: a.totalAmount - b.totalAmount,
 			);
 
 			// Sort planets inside each user group according to sortDir
@@ -296,234 +302,206 @@ export const DetailTooltip = React.memo(
 			return (
 				<Box
 					sx={{
-						p: 1.25,
-						minWidth: 300,
+						p: 1,
+						minWidth: 290,
 						maxWidth: 380,
-						maxHeight: 420,
+						maxHeight: 450,
 						overflowY: "auto",
 					}}
 				>
-					{/* Header bar with title, total count & sort toggle */}
+					{/* Header bar matching CategoryCard drilldown style */}
 					<Box
 						sx={{
 							display: "flex",
 							alignItems: "center",
 							justifyContent: "space-between",
+							gap: 1,
 							mb: 0.75,
 							pb: 0.5,
 							borderBottom: "1px solid rgba(255, 255, 255, 0.08)",
 						}}
 					>
 						<Box sx={{ display: "flex", alignItems: "center", gap: 0.75 }}>
+							{ticker && <MaterialBadge ticker={ticker} />}
 							<Typography
 								variant="caption"
 								sx={{
-									fontWeight: 800,
+									fontSize: "0.75rem",
 									color: accentColor,
 									textTransform: "uppercase",
-									letterSpacing: "0.06em",
-									fontSize: "0.74rem",
+									letterSpacing: "0.05em",
+									fontWeight: 500,
 								}}
 							>
-								{title}
+								{roleLabel}
 							</Typography>
 							<Typography
 								variant="caption"
 								sx={{
-									color: "rgba(255,255,255,0.45)",
-									fontSize: "0.62rem",
-									fontWeight: 700,
+									fontSize: "0.7rem",
+									color: "text.secondary",
+									px: 0.6,
+									py: 0.1,
+									borderRadius: 1,
+									bgcolor: "rgba(255, 255, 255, 0.05)",
 								}}
 							>
-								({userGroups.length} user{userGroups.length !== 1 ? "s" : ""})
+								{userGroups.length}
 							</Typography>
 						</Box>
-						<Stack
-							sx={{ direction: "row", spacing: 0.5, alignItems: "center" }}
-						>
-							<Chip
-								size="small"
-								label={sortDir === "desc" ? "High ➔ Low" : "Low ➔ High"}
+
+						{/* Action Buttons: Expand All & Sort */}
+						<Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
+							<Box
+								component="button"
+								onClick={() => {
+									const anyExpanded = userGroups.some(
+										(g) => expandedUsers[g.player] ?? false,
+									);
+									const nextState = !anyExpanded;
+									const updated: Record<string, boolean> = {};
+									userGroups.forEach((g) => {
+										updated[g.player] = nextState;
+									});
+									setExpandedUsers(updated);
+								}}
+								sx={{
+									background: "none",
+									border: "1px solid rgba(255, 255, 255, 0.1)",
+									borderRadius: 1,
+									color: "text.secondary",
+									fontSize: "0.65rem",
+									px: 0.6,
+									py: 0.2,
+									cursor: "pointer",
+									"&:hover": {
+										color: "text.primary",
+										bgcolor: "rgba(255,255,255,0.05)",
+									},
+								}}
+							>
+								{userGroups.some((g) => expandedUsers[g.player] ?? false)
+									? "Collapse all"
+									: "Expand all"}
+							</Box>
+
+							<Box
+								component="button"
 								onClick={() =>
 									setSortDir((prev) => (prev === "desc" ? "asc" : "desc"))
 								}
 								sx={{
-									height: 16,
-									fontSize: "0.55rem",
-									fontWeight: 700,
-									bgcolor: "rgba(255,255,255,0.04)",
-									color: "rgba(255,255,255,0.7)",
+									background: "none",
+									border: "1px solid rgba(255, 255, 255, 0.1)",
+									borderRadius: 1,
+									color: "text.secondary",
+									fontSize: "0.65rem",
+									px: 0.6,
+									py: 0.2,
 									cursor: "pointer",
-									border: "1px solid rgba(255,255,255,0.1)",
-									"&:hover": { bgcolor: "rgba(255,255,255,0.1)" },
-								}}
-							/>
-							<Chip
-								size="small"
-								label={`${items.length} sites`}
-								sx={{
-									height: 16,
-									fontSize: "0.58rem",
-									fontWeight: 800,
-									bgcolor: alpha(accentColor, 0.15),
-									color: accentColor,
-									border: `1px solid ${alpha(accentColor, 0.3)}`,
-								}}
-							/>
-						</Stack>
-					</Box>
-
-					<Stack spacing={0.6}>
-						{/* Daily Total Summary Row - Inline Glass Bar */}
-						<Box
-							sx={{
-								py: 0.4,
-								px: 0.8,
-								borderRadius: 1,
-								bgcolor: "rgba(255, 255, 255, 0.03)",
-								border: "1px solid rgba(255, 255, 255, 0.06)",
-								display: "flex",
-								alignItems: "center",
-								justifyContent: "space-between",
-							}}
-						>
-							<Typography
-								variant="caption"
-								sx={{
-									color: "rgba(255, 255, 255, 0.5)",
-									fontWeight: 700,
-									fontSize: "0.62rem",
-									letterSpacing: "0.04em",
+									"&:hover": {
+										color: "text.primary",
+										bgcolor: "rgba(255,255,255,0.05)",
+									},
 								}}
 							>
-								DAILY TOTAL
-							</Typography>
-							<Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-								{estimatedRaw > 0 && (
-									<Typography
-										variant="caption"
-										sx={{
-											color: "rgba(255, 255, 255, 0.4)",
-											fontSize: "0.58rem",
-										}}
-									>
-										Acc: {formatExactNumber(accurateRaw)} |{" "}
-										<span style={{ color: "#BA68C8" }}>
-											Est: ~{formatExactNumber(estimatedRaw)}
-										</span>
-									</Typography>
-								)}
-								<Typography
-									variant="caption"
-									sx={{
-										color: accentColor,
-										fontWeight: 900,
-										fontSize: "0.82rem",
-									}}
-								>
-									{formatExactNumber(totalRaw)}
-								</Typography>
+								{sortDir === "desc" ? "Highest" : "Lowest"}
 							</Box>
 						</Box>
+					</Box>
 
-						{/* Expandable Category Rows per User */}
+					{/* Users List */}
+					<Stack spacing={0.4}>
 						{userGroups.length > 0 ? (
 							userGroups.map((uGroup) => {
 								const stale = isMemberStale(uGroup.player);
-								const isExpanded = expandedUsers[uGroup.player] !== false; // Default true
+								const isExpanded = expandedUsers[uGroup.player] ?? false;
 
 								return (
 									<Box
 										key={uGroup.player}
 										sx={{
-											borderRadius: 1.25,
-											bgcolor: "rgba(18, 18, 32, 0.75)",
-											border: "1px solid rgba(255, 255, 255, 0.06)",
+											borderRadius: 1,
+											bgcolor: "rgba(255, 255, 255, 0.02)",
+											border: "1px solid rgba(255, 255, 255, 0.05)",
 											overflow: "hidden",
-											transition: "all 0.15s ease",
 										}}
 									>
-										{/* Expandable User Header Row */}
+										{/* User Accordion Header */}
 										<Box
 											onClick={() => toggleUserExpand(uGroup.player)}
 											sx={{
-												p: 0.5,
-												px: 0.8,
-												bgcolor: "rgba(255, 255, 255, 0.02)",
+												py: 0.4,
+												px: 0.75,
+												bgcolor: isExpanded
+													? "rgba(255, 255, 255, 0.04)"
+													: "transparent",
 												cursor: "pointer",
 												display: "flex",
 												alignItems: "center",
 												justifyContent: "space-between",
 												userSelect: "none",
-												"&:hover": { bgcolor: "rgba(255, 255, 255, 0.05)" },
+												"&:hover": { bgcolor: "rgba(255, 255, 255, 0.06)" },
 											}}
 										>
-											<Stack
+											<Box
 												sx={{
-													direction: "row",
-													spacing: 0.75,
+													display: "flex",
 													alignItems: "center",
+													gap: 0.75,
+													minWidth: 0,
 												}}
 											>
-												{uGroup.isAccurate ? (
-													<CheckCircleIcon
-														sx={{ fontSize: 12, color: "#81C784" }}
-													/>
-												) : (
-													<HelpIcon sx={{ fontSize: 12, color: "#BA68C8" }} />
-												)}
 												<Typography
 													variant="caption"
 													noWrap
 													sx={{
-														color: stale ? "#FFB74D" : "#FFFFFF",
-														fontWeight: 800,
-														fontSize: "0.74rem",
+														color: stale ? "warning.main" : "text.primary",
+														fontSize: "0.75rem",
+														fontWeight: 500,
 													}}
 												>
 													{uGroup.player}
 												</Typography>
-												<Chip
-													size="small"
-													label={`${uGroup.planets.length} site${uGroup.planets.length > 1 ? "s" : ""}`}
+												<Typography
+													variant="caption"
 													sx={{
-														height: 15,
-														fontSize: "0.55rem",
-														fontWeight: 700,
-														bgcolor: "rgba(255,255,255,0.06)",
-														color: "rgba(255,255,255,0.5)",
+														fontSize: "0.65rem",
+														color: "text.secondary",
 													}}
-												/>
-											</Stack>
+												>
+													{uGroup.planets.length} site
+													{uGroup.planets.length > 1 ? "s" : ""}
+												</Typography>
+											</Box>
 
-											<Stack
+											<Box
 												sx={{
-													direction: "row",
-													spacing: 0.5,
+													display: "flex",
 													alignItems: "center",
+													gap: 0.75,
 												}}
 											>
 												{(uGroup.batchActive > 0 || uGroup.batchQueued > 0) && (
-													<Chip
-														size="small"
-														label={`+${Math.round(uGroup.batchActive)}${uGroup.batchQueued > 0 ? ` (${Math.round(uGroup.batchQueued)})` : ""}`}
+													<Typography
+														variant="caption"
 														sx={{
-															height: 15,
-															fontSize: "0.55rem",
-															fontWeight: 800,
-															bgcolor: alpha("#FFB74D", 0.12),
+															fontSize: "0.65rem",
 															color: "#FFB74D",
-															border: "1px solid rgba(255, 183, 77, 0.25)",
-															px: 0.15,
 														}}
-													/>
+													>
+														+{Math.round(uGroup.batchActive)}
+														{uGroup.batchQueued > 0
+															? ` (${Math.round(uGroup.batchQueued)})`
+															: ""}
+													</Typography>
 												)}
 												<Typography
 													variant="caption"
 													sx={{
 														color: accentColor,
-														fontWeight: 800,
-														fontSize: "0.76rem",
+														fontSize: "0.75rem",
+														fontWeight: 500,
 													}}
 												>
 													{formatSmartNumber(uGroup.totalAmount)}
@@ -531,23 +509,24 @@ export const DetailTooltip = React.memo(
 												<Typography
 													variant="caption"
 													sx={{
-														color: "rgba(255,255,255,0.4)",
-														fontSize: "0.65rem",
-														ml: 0.1,
+														color: "text.secondary",
+														fontSize: "0.6rem",
+														width: 10,
+														textAlign: "center",
 													}}
 												>
 													{isExpanded ? "▲" : "▼"}
 												</Typography>
-											</Stack>
+											</Box>
 										</Box>
 
-										{/* Collapsible Sites/Planets List */}
+										{/* Sites Details */}
 										{isExpanded && (
 											<Stack
-												spacing={0.35}
+												spacing={0.3}
 												sx={{
 													p: 0.5,
-													pt: 0.35,
+													pt: 0.3,
 													borderTop: "1px solid rgba(255, 255, 255, 0.04)",
 												}}
 											>
@@ -567,8 +546,7 @@ export const DetailTooltip = React.memo(
 																	p: 0.4,
 																	px: 0.6,
 																	borderRadius: 0.75,
-																	bgcolor: "rgba(10, 10, 20, 0.5)",
-																	border: "1px solid rgba(255, 255, 255, 0.03)",
+																	bgcolor: "rgba(0, 0, 0, 0.25)",
 																}}
 															>
 																<Box
@@ -581,58 +559,53 @@ export const DetailTooltip = React.memo(
 																	<Typography
 																		variant="caption"
 																		sx={{
-																			fontWeight: 700,
-																			color: "#64FFDA",
-																			fontSize: "0.65rem",
+																			color: "text.secondary",
+																			fontSize: "0.7rem",
 																		}}
 																	>
-																		📍 {pItem.loc}
+																		{pItem.loc}
 																	</Typography>
-																	<Stack
+																	<Box
 																		sx={{
-																			direction: "row",
-																			spacing: 0.5,
+																			display: "flex",
 																			alignItems: "center",
+																			gap: 0.5,
 																		}}
 																	>
 																		{(bActive > 0 || bQueued > 0) && (
-																			<Chip
-																				size="small"
-																				label={`+${Math.round(bActive)}${bQueued > 0 ? ` (${Math.round(bQueued)})` : ""}`}
+																			<Typography
+																				variant="caption"
 																				sx={{
-																					height: 13,
-																					fontSize: "0.52rem",
-																					fontWeight: 800,
-																					bgcolor: alpha("#FFB74D", 0.12),
+																					fontSize: "0.62rem",
 																					color: "#FFB74D",
-																					border:
-																						"1px solid rgba(255, 183, 77, 0.25)",
-																					px: 0.1,
 																				}}
-																			/>
+																			>
+																				+{Math.round(bActive)}
+																				{bQueued > 0
+																					? ` (${Math.round(bQueued)})`
+																					: ""}
+																			</Typography>
 																		)}
 																		<Typography
 																			variant="caption"
 																			sx={{
-																				fontWeight: 800,
 																				color: accentColor,
-																				fontSize: "0.7rem",
+																				fontSize: "0.72rem",
 																			}}
 																		>
 																			{formatSmartNumber(pItem.amount)}
 																		</Typography>
-																	</Stack>
+																	</Box>
 																</Box>
 
-																{/* Correlated Recipes for this site */}
 																{recipes.length > 0 && (
 																	<Stack
 																		spacing={0.2}
 																		sx={{
-																			mt: 0.35,
+																			mt: 0.25,
 																			pt: 0.25,
 																			borderTop:
-																				"1px dashed rgba(255,255,255,0.06)",
+																				"1px solid rgba(255, 255, 255, 0.03)",
 																		}}
 																	>
 																		{recipes.map((rec, rIdx) => {
@@ -648,11 +621,6 @@ export const DetailTooltip = React.memo(
 																				<Box
 																					key={rIdx}
 																					sx={{
-																						py: 0.15,
-																						px: 0.4,
-																						borderRadius: 0.5,
-																						bgcolor:
-																							"rgba(186, 104, 200, 0.05)",
 																						display: "flex",
 																						alignItems: "center",
 																						justifyContent: "space-between",
@@ -840,11 +808,9 @@ export const DetailTooltip = React.memo(
 		}, [
 			isOpen,
 			items,
-			totalRaw,
-			accurateRaw,
-			estimatedRaw,
+			ticker,
+			roleLabel,
 			userGroups,
-			title,
 			accentColor,
 			sortDir,
 			expandedUsers,

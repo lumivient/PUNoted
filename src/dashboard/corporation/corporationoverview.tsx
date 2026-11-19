@@ -47,6 +47,15 @@ const EXCHANGE_CURRENCY_CODE_MAP: Record<string, string> = {
 
 import { useTheme, useMediaQuery } from "@mui/material";
 
+interface FuelConsumer {
+	player_name: string;
+	total_stl: number;
+	total_ftl: number;
+	daily_stl: number;
+	daily_ftl: number;
+	flights_count: number;
+}
+
 interface FuelConsumptionData {
 	days: number;
 	total_flights: number;
@@ -72,6 +81,7 @@ interface FuelConsumptionData {
 		total_cost: number;
 	};
 	savings_vs_cx: number;
+	consumers?: FuelConsumer[];
 }
 
 const formatFuel = (val: number): string => {
@@ -167,6 +177,7 @@ export const CorporationOverview: React.FC = () => {
 
 	const activeViewData = useMemo(() => {
 		if (corpData.length === 0) return null;
+		let baseCorp: any = null;
 		if (selectedCorpFilter === "ALL") {
 			const aggregatedSummaryMap = new Map<string, any>();
 			const allMembers: any[] = [];
@@ -262,16 +273,115 @@ export const CorporationOverview: React.FC = () => {
 				amount,
 			}));
 
-			return {
+			baseCorp = {
 				code: "ALL",
 				name: "All Corporations Aggregated",
 				members: allMembers,
 				productionSummary: Array.from(aggregatedSummaryMap.values()),
 				balances: aggregatedBalances,
 			};
+		} else {
+			baseCorp =
+				corpData.find((c) => c.code === selectedCorpFilter) || corpData[0];
 		}
-		return corpData.find((c) => c.code === selectedCorpFilter) || corpData[0];
-	}, [corpData, selectedCorpFilter]);
+
+		if (!baseCorp) return null;
+
+		// Inject rolling daily fuel consumption (SF & FF) into productionSummary
+		if (fuelData && fuelData.consumers && fuelData.consumers.length > 0) {
+			const prodSummaryCopy = baseCorp.productionSummary
+				? baseCorp.productionSummary.map((item) => ({ ...item }))
+				: [];
+
+			const fuelConfigs: Array<{
+				ticker: "SF" | "FF";
+				name: string;
+				dailyTotal: number;
+				getMemberDaily: (c: FuelConsumer) => number;
+				getMemberTotal: (c: FuelConsumer) => number;
+			}> = [
+				{
+					ticker: "SF",
+					name: "Standard Fuel",
+					dailyTotal: fuelData.daily_average?.stl || 0,
+					getMemberDaily: (c) => c.daily_stl || 0,
+					getMemberTotal: (c) => c.total_stl || 0,
+				},
+				{
+					ticker: "FF",
+					name: "FTL Fuel",
+					dailyTotal: fuelData.daily_average?.ftl || 0,
+					getMemberDaily: (c) => c.daily_ftl || 0,
+					getMemberTotal: (c) => c.total_ftl || 0,
+				},
+			];
+
+			fuelConfigs.forEach((cfg) => {
+				const activeFuelConsumers: ProducerConsumerItem[] = fuelData
+					.consumers!
+					.filter((c) => cfg.getMemberTotal(c) > 0)
+					.map((c) => ({
+						player: c.player_name,
+						loc: "Fleet",
+						amount: cfg.getMemberDaily(c),
+						isAccurate: true,
+					}));
+
+				if (activeFuelConsumers.length === 0 && cfg.dailyTotal === 0) return;
+
+				let item = prodSummaryCopy.find((p) => p.ticker === cfg.ticker);
+				if (!item) {
+					item = {
+						ticker: cfg.ticker,
+						name: cfg.name,
+						production: 0,
+						productionTotal: 0,
+						productionAccurate: 0,
+						productionEstimated: 0,
+						consumption: 0,
+						consumptionTotal: 0,
+						consumptionAccurate: 0,
+						consumptionEstimated: 0,
+						net: 0,
+						storageQty: 0,
+						price: 0,
+						marketSharePct: 0,
+						producers: [],
+						consumers: [],
+					};
+					prodSummaryCopy.push(item);
+				}
+
+				// Merge fuel consumers without duplicating if re-computed
+				const existingNonFleetConsumers = (item.consumers || []).filter(
+					(c) => c.loc !== "Fleet",
+				);
+				item.consumers = [...existingNonFleetConsumers, ...activeFuelConsumers];
+
+				// Recalculate consumptionTotal and net
+				const nonFleetCons = existingNonFleetConsumers.reduce(
+					(sum, c) => sum + (c.amount || 0),
+					0,
+				);
+				const fleetCons = activeFuelConsumers.reduce(
+					(sum, c) => sum + (c.amount || 0),
+					0,
+				);
+				item.consumptionTotal = nonFleetCons + fleetCons;
+				item.consumptionAccurate =
+					(item.consumptionAccurate || 0) + fleetCons;
+				item.consumption = item.consumptionTotal;
+				item.net = (item.productionTotal || 0) - item.consumptionTotal;
+			});
+
+			return {
+				...baseCorp,
+				productionSummary: prodSummaryCopy,
+			};
+		}
+
+		return baseCorp;
+	}, [corpData, selectedCorpFilter, fuelData]);
 
 	const activeCurrencyCode =
 		pricingMode === "CORP"
