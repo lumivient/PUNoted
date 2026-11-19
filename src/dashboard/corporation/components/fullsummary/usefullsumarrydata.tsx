@@ -1,5 +1,6 @@
 import { useState, useMemo, useEffect, useCallback } from "react";
 import { useTheme, useMediaQuery } from "@mui/material";
+import { fetchClient } from "../../../../utils/apiclient";
 import { useGlobalData } from "../../../../context/globaldatacontext";
 import type {
 	Props,
@@ -18,7 +19,7 @@ import {
 	extractMultiRecipeMaterials,
 } from "./utils";
 
-export interface UseFullSummaryDataProps extends Props {}
+export interface UseFullSummaryDataProps extends Partial<Props> {}
 
 export const useFullSummaryData = ({
 	productionSummary = [],
@@ -81,6 +82,35 @@ export const useFullSummaryData = ({
 	const [searchQuery, setSearchQuery] = useState("");
 	const [exactMatch, setExactMatch] = useState(false);
 	const [settingsOpen, setSettingsOpen] = useState(false);
+
+	const [tradeSummary, setTradeSummary] = useState<Record<string, any>>({});
+	const [isTradeLoading, setIsTradeLoading] = useState(false);
+
+	useEffect(() => {
+		let isMounted = true;
+		const fetchTrades = async () => {
+			setIsTradeLoading(true);
+			try {
+				const res = await fetchClient(
+					"/internal/corporation/trade-summary?days=7",
+				);
+				if (res?.ok) {
+					const data = await res.json();
+					if (isMounted && data?.trades) {
+						setTradeSummary(data.trades);
+					}
+				}
+			} catch (err) {
+				console.error("Failed to fetch corp trade summary:", err);
+			} finally {
+				if (isMounted) setIsTradeLoading(false);
+			}
+		};
+		fetchTrades();
+		return () => {
+			isMounted = false;
+		};
+	}, []);
 
 	const activeCurrencyCode =
 		activePricingMode === "CORP"
@@ -197,6 +227,7 @@ export const useFullSummaryData = ({
 				effectiveShareBasis,
 				recipeOverrides,
 				getEffectivePrice,
+				tradeSummary,
 			}),
 		[
 			productionSummary,
@@ -205,6 +236,7 @@ export const useFullSummaryData = ({
 			effectiveShareBasis,
 			recipeOverrides,
 			getEffectivePrice,
+			tradeSummary,
 		],
 	);
 
@@ -281,6 +313,7 @@ export const useFullSummaryData = ({
 		aggregatedRows,
 		filteredRows,
 		multiRecipeMaterials,
+		isTradeLoading,
 	};
 };
 

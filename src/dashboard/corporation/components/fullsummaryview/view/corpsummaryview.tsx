@@ -107,7 +107,7 @@ export const CorpSummaryView: React.FC<{
 											sx={{ bgcolor: theme.palette.background.default }}
 										>
 											<TableCell
-												colSpan={11}
+												colSpan={13}
 												sx={{
 													color: theme.palette.primary.light,
 													fontWeight: 700,

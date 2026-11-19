@@ -162,6 +162,32 @@ export const CorpSummaryTableHead: React.FC<{
 				</TableCell>
 				<TableCell
 					align="right"
+					onClick={() => onHeaderClick("corpContractsAmount")}
+					sx={{ ...headerCellSx, minWidth: 90 }}
+				>
+					<Tooltip
+						title="Volume traded internally between corporation members via contracts over last 7 days"
+						arrow
+						placement="top"
+					>
+						<span>CORP 7D {renderSortIcon("corpContractsAmount")}</span>
+					</Tooltip>
+				</TableCell>
+				<TableCell
+					align="right"
+					onClick={() => onHeaderClick("cxBoughtAmount")}
+					sx={{ ...headerCellSx, minWidth: 95 }}
+				>
+					<Tooltip
+						title="Commodity Exchange (CX) volume bought (+) and sold (-) by corp members over last 7 days"
+						arrow
+						placement="top"
+					>
+						<span>CX 7D {renderSortIcon("cxBoughtAmount")}</span>
+					</Tooltip>
+				</TableCell>
+				<TableCell
+					align="right"
 					onClick={() => onHeaderClick("sharePct")}
 					sx={{ ...headerCellSx, minWidth: 75 }}
 				>

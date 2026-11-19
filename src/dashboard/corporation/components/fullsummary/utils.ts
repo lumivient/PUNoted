@@ -39,32 +39,32 @@ export const resolveEffectivePrice = (
 	}
 
 	if (mObj && typeof mObj === "object") {
-		// 3a. Selected exchange: AskPrice -> Average -> BidPrice
-		const ask = Number(mObj[`${effMode}-AskPrice`]);
-		if (!isNaN(ask) && ask > 0) return ask;
-
+		// 3a. Selected exchange: Average -> AskPrice -> BidPrice
 		const avg = Number(mObj[`${effMode}-Average`]);
 		if (!isNaN(avg) && avg > 0) return avg;
+
+		const ask = Number(mObj[`${effMode}-AskPrice`]);
+		if (!isNaN(ask) && ask > 0) return ask;
 
 		const bid = Number(mObj[`${effMode}-BidPrice`]);
 		if (!isNaN(bid) && bid > 0) return bid;
 
 		// 3b. Direct/generic price properties fallback
 		const generic = Number(
-			mObj.AskPrice ??
-				mObj.askPrice ??
-				mObj.Average ??
+			mObj.Average ??
 				mObj.average ??
 				mObj.Price ??
-				mObj.price,
+				mObj.price ??
+				mObj.AskPrice ??
+				mObj.askPrice,
 		);
 		if (!isNaN(generic) && generic > 0) return generic;
 
 		// 3c. Fallback across all other exchanges if selected exchange has 0 liquidity
 		for (const key of Object.keys(mObj)) {
 			if (
-				key.endsWith("-AskPrice") ||
 				key.endsWith("-Average") ||
+				key.endsWith("-AskPrice") ||
 				key.endsWith("-BidPrice")
 			) {
 				const val = Number(mObj[key]);
@@ -142,6 +142,7 @@ export interface AggregateParams {
 	effectiveShareBasis: ShareBasis;
 	recipeOverrides: Record<string, number>;
 	getEffectivePrice: (ticker: string, fallback?: number) => number;
+	tradeSummary?: Record<string, any>;
 }
 
 /**
@@ -154,6 +155,7 @@ export const aggregateProductionRows = ({
 	effectiveShareBasis,
 	recipeOverrides,
 	getEffectivePrice,
+	tradeSummary,
 }: AggregateParams): AggregatedSummaryRow[] => {
 	const corpMap = new Map<string, ProductionSummaryItem>();
 	productionSummary.forEach((item) => corpMap.set(item.ticker, item));
@@ -179,10 +181,23 @@ export const aggregateProductionRows = ({
 		const cons = corpItem?.consumptionTotal || 0;
 		const net = corpItem?.net || prod - cons;
 		const storageQty = corpItem?.storageQty || 0;
+		const tTrades = tradeSummary
+			? tradeSummary[ticker] || tradeSummary[ticker.toUpperCase()]
+			: undefined;
+		const corpContractsAmount = tTrades?.corp_contracts?.amount || 0;
+		const corpContractsCount = tTrades?.corp_contracts?.count || 0;
+		const cxBoughtAmount = tTrades?.cx?.bought_amount || 0;
+		const cxBoughtAvgPrice = tTrades?.cx?.bought_avg_price || 0;
+		const cxSoldAmount = tTrades?.cx?.sold_amount || 0;
+		const cxSoldAvgPrice = tTrades?.cx?.sold_avg_price || 0;
+
 		const isCorpActive =
 			prod > 0 ||
 			cons > 0 ||
 			storageQty > 0 ||
+			corpContractsAmount > 0 ||
+			cxBoughtAmount > 0 ||
+			cxSoldAmount > 0 ||
 			(corpItem?.batchProdActive || 0) > 0;
 		const category = getCategory(ticker) || matInfo?.category || "General";
 		const isWorkforce =
@@ -238,7 +253,10 @@ export const aggregateProductionRows = ({
 								0,
 							);
 
-							totalWeightedRecipeCost += fullRecipeCost * ur.dailyOutput;
+							const outAmt =
+								Number(ur.outputAmount) > 0 ? Number(ur.outputAmount) : 1;
+							const unitCost = fullRecipeCost / outAmt;
+							totalWeightedRecipeCost += unitCost * ur.dailyOutput;
 							totalDailyOutput += ur.dailyOutput;
 						}
 					});
@@ -335,6 +353,12 @@ export const aggregateProductionRows = ({
 			userRecipesUsed: corpItem?.userRecipesUsed || [],
 			isCorpActive,
 			isWorkforce,
+			corpContractsAmount,
+			corpContractsCount,
+			cxBoughtAmount,
+			cxBoughtAvgPrice,
+			cxSoldAmount,
+			cxSoldAvgPrice,
 		});
 	});
 

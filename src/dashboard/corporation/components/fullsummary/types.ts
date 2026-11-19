@@ -39,4 +39,10 @@ export interface AggregatedSummaryRow {
 	batchConsActive?: number;
 	batchConsQueued?: number;
 	userRecipesUsed?: any[];
+	corpContractsAmount?: number;
+	corpContractsCount?: number;
+	cxBoughtAmount?: number;
+	cxBoughtAvgPrice?: number;
+	cxSoldAmount?: number;
+	cxSoldAvgPrice?: number;
 }

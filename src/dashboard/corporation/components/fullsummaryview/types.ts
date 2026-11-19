@@ -15,7 +15,9 @@ export type SortField =
 	| "estExpense"
 	| "netValue"
 	| "storageQty"
-	| "sharePct";
+	| "sharePct"
+	| "corpContractsAmount"
+	| "cxBoughtAmount";
 
 export interface Props {
 	productionSummary: ProductionSummaryItem[];

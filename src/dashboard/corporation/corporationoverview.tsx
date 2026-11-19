@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useCallback } from "react";
+import React, { useState, useMemo, useCallback, useEffect } from "react";
 import {
 	Box,
 	Paper,
@@ -12,6 +12,7 @@ import {
 	ToggleButtonGroup,
 	ToggleButton,
 	Stack,
+	Tooltip,
 	type SelectChangeEvent,
 	alpha,
 } from "@mui/material";
@@ -19,6 +20,8 @@ import TrendingUpIcon from "@mui/icons-material/TrendingUp";
 import ShoppingCartIcon from "@mui/icons-material/ShoppingCart";
 import AccountBalanceIcon from "@mui/icons-material/AccountBalance";
 import GroupsIcon from "@mui/icons-material/Groups";
+import LocalGasStationIcon from "@mui/icons-material/LocalGasStation";
+import { fetchClient } from "../../utils/apiclient";
 import { useGlobalData } from "../../context/globaldatacontext";
 import { CorpProductionView } from "./corpproductionview";
 import { CorpFullSummaryView } from "./corpfullsummaryview";
@@ -44,6 +47,39 @@ const EXCHANGE_CURRENCY_CODE_MAP: Record<string, string> = {
 
 import { useTheme, useMediaQuery } from "@mui/material";
 
+interface FuelConsumptionData {
+	days: number;
+	total_flights: number;
+	total_stl: number;
+	total_ftl: number;
+	daily_average: {
+		stl: number;
+		ftl: number;
+		flights: number;
+	};
+	prices: {
+		corp: { SF: number; FF: number };
+		cx_ic1: { SF: number; FF: number };
+	};
+	corp_pricing: {
+		stl_cost: number;
+		ftl_cost: number;
+		total_cost: number;
+	};
+	cx_pricing: {
+		stl_cost: number;
+		ftl_cost: number;
+		total_cost: number;
+	};
+	savings_vs_cx: number;
+}
+
+const formatFuel = (val: number): string => {
+	if (val >= 1000000) return `${(val / 1000000).toFixed(1)}M`;
+	if (val >= 1000) return `${(val / 1000).toFixed(0)}k`;
+	return val.toLocaleString();
+};
+
 export const CorporationOverview: React.FC = () => {
 	const theme = useTheme();
 	const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
@@ -55,6 +91,33 @@ export const CorporationOverview: React.FC = () => {
 	} = useGlobalData();
 	const [selectedCorpFilter, setSelectedCorpFilter] = useState<string>("ALL");
 	const [tabValue, setTabValue] = useState<number>(0);
+
+	const [fuelData, setFuelData] = useState<FuelConsumptionData | null>(null);
+	const [isFuelLoading, setIsFuelLoading] = useState<boolean>(false);
+
+	useEffect(() => {
+		let isMounted = true;
+		const fetchFuel = async () => {
+			setIsFuelLoading(true);
+			try {
+				const res = await fetchClient(
+					"/internal/corporation/fuel-consumption?days=7",
+				);
+				if (res?.ok) {
+					const data = await res.json();
+					if (isMounted) setFuelData(data);
+				}
+			} catch (err) {
+				console.error("Failed to fetch fuel consumption:", err);
+			} finally {
+				if (isMounted) setIsFuelLoading(false);
+			}
+		};
+		fetchFuel();
+		return () => {
+			isMounted = false;
+		};
+	}, []);
 
 	const [pricingMode, setPricingMode] = useState<"CX" | "CORP">("CX");
 	const [selectedExchange, setSelectedExchange] = useState<string>(() => {
@@ -248,13 +311,13 @@ export const CorporationOverview: React.FC = () => {
 					marketData[ticker] || marketData[`${ticker}.${effMode}`];
 				if (mObj && typeof mObj === "object") {
 					const p =
-						mObj[`${effMode}-AskPrice`] ||
 						mObj[`${effMode}-Average`] ||
+						mObj[`${effMode}-AskPrice`] ||
 						mObj[`${effMode}-BidPrice`] ||
-						mObj.AskPrice ||
-						mObj.askPrice ||
 						mObj.Average ||
 						mObj.average ||
+						mObj.AskPrice ||
+						mObj.askPrice ||
 						mObj.price ||
 						0;
 					if (p > 0) price = p;
@@ -276,6 +339,23 @@ export const CorporationOverview: React.FC = () => {
 			totalStockQty,
 		};
 	}, [activeViewData, pricingMode, selectedExchange, marketData, corpPrices]);
+
+	const memberCounts = useMemo(() => {
+		const members = activeViewData?.members || [];
+		const total = members.length;
+		const now = Date.now();
+		const active7d = members.filter((m) => {
+			if (!m.lastActive) return false;
+			const diff = now - new Date(m.lastActive).getTime();
+			const days = diff / (1000 * 60 * 60 * 24);
+			return days < 7;
+		}).length;
+
+		return {
+			active7d,
+			total,
+		};
+	}, [activeViewData]);
 
 	const displayName = activeViewData
 		? selectedCorpFilter === "ALL"
@@ -316,11 +396,91 @@ export const CorporationOverview: React.FC = () => {
 		},
 		{
 			title: "CORP MEMBERS",
-			value: activeViewData?.members?.length
-				? `${activeViewData.members.length} Active`
-				: "0 Active",
+			value: `${memberCounts.active7d} Active · ${memberCounts.total} Total`,
 			icon: <GroupsIcon sx={{ color: theme.palette.primary.light }} />,
 			color: theme.palette.primary.light,
+			tooltip: (
+				<Box sx={{ p: 0.5, maxWidth: 220 }}>
+					<Typography
+						variant="subtitle2"
+						sx={{
+							fontWeight: 800,
+							mb: 0.5,
+							color: theme.palette.primary.light,
+							fontSize: "0.8rem",
+						}}
+					>
+						Corporation Members
+					</Typography>
+					<Typography variant="body2" sx={{ fontSize: "0.75rem", mb: 0.25 }}>
+						Active (&lt; 7 days): <strong>{memberCounts.active7d}</strong>
+					</Typography>
+					<Typography variant="body2" sx={{ fontSize: "0.75rem" }}>
+						Total Shareholders: <strong>{memberCounts.total}</strong>
+					</Typography>
+				</Box>
+			),
+		},
+		{
+			title: "7D FUEL USAGE",
+			value: isFuelLoading
+				? "Loading..."
+				: fuelData
+					? `${formatFuel(fuelData.total_stl)} SF · ${formatFuel(fuelData.total_ftl)} FF`
+					: "—",
+			icon: <LocalGasStationIcon sx={{ color: theme.palette.warning.main }} />,
+			color: theme.palette.warning.main,
+			tooltip: fuelData ? (
+				<Box sx={{ p: 0.5, maxWidth: 280 }}>
+					<Typography
+						variant="subtitle2"
+						sx={{
+							fontWeight: 800,
+							mb: 0.75,
+							color: theme.palette.warning.light,
+							fontSize: "0.8rem",
+						}}
+					>
+						Rolling 7-Day Fuel Usage
+					</Typography>
+					<Typography variant="body2" sx={{ fontSize: "0.75rem", mb: 0.25 }}>
+						Total Flights:{" "}
+						<strong>{fuelData.total_flights.toLocaleString()}</strong>
+					</Typography>
+					<Typography variant="body2" sx={{ fontSize: "0.75rem", mb: 0.25 }}>
+						STL Fuel: <strong>{fuelData.total_stl.toLocaleString()} SF</strong>{" "}
+						(~{Math.round(fuelData.daily_average.stl).toLocaleString()} / d)
+					</Typography>
+					<Typography variant="body2" sx={{ fontSize: "0.75rem", mb: 0.75 }}>
+						FTL Fuel: <strong>{fuelData.total_ftl.toLocaleString()} FF</strong>{" "}
+						(~{Math.round(fuelData.daily_average.ftl).toLocaleString()} / d)
+					</Typography>
+					<Box
+						sx={{
+							borderTop: `1px solid ${alpha(theme.palette.divider, 0.2)}`,
+							pt: 0.75,
+							display: "flex",
+							flexDirection: "column",
+							gap: 0.25,
+						}}
+					>
+						<Typography variant="body2" sx={{ fontSize: "0.75rem" }}>
+							Corp Cost:{" "}
+							<strong>
+								{Math.round(fuelData.corp_pricing.total_cost).toLocaleString()}{" "}
+								ICA
+							</strong>
+						</Typography>
+						<Typography variant="body2" sx={{ fontSize: "0.75rem" }}>
+							CX IC1 Cost:{" "}
+							<strong>
+								{Math.round(fuelData.cx_pricing.total_cost).toLocaleString()}{" "}
+								ICA
+							</strong>
+						</Typography>
+					</Box>
+				</Box>
+			) : undefined,
 		},
 	];
 
@@ -534,20 +694,20 @@ export const CorporationOverview: React.FC = () => {
 					</Stack>
 				</Box>
 
-				{/* KPI Cards Grid (Responsive 2x2 on Mobile, 1x4 on Desktop) */}
+				{/* KPI Cards Grid */}
 				<Grid
 					container
 					spacing={1.25}
 					sx={{ width: "100%", justifyContent: "center" }}
 				>
-					{widgets.map((w, i) => (
-						<Grid item xs={6} md={3} key={i}>
+					{widgets.map((w, i) => {
+						const cardContent = (
 							<Box
 								sx={{
 									py: 1,
 									px: 1.5,
 									borderRadius: 2,
-									cursor: "default",
+									cursor: w.tooltip ? "help" : "default",
 									display: "flex",
 									flexDirection: "column",
 									justifyContent: "center",
@@ -600,8 +760,20 @@ export const CorporationOverview: React.FC = () => {
 									{w.value}
 								</Typography>
 							</Box>
-						</Grid>
-					))}
+						);
+
+						return (
+							<Grid item xs={6} sm={4} md={2.4} key={i}>
+								{w.tooltip ? (
+									<Tooltip title={w.tooltip} arrow placement="bottom">
+										{cardContent}
+									</Tooltip>
+								) : (
+									cardContent
+								)}
+							</Grid>
+						);
+					})}
 				</Grid>
 			</Paper>
 

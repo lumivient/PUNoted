@@ -66,6 +66,35 @@ export const MobileMaterialCard: React.FC<{
 						}}
 					/>
 				)}
+				{row.corpContractsAmount && row.corpContractsAmount > 0 && (
+					<Chip
+						size="small"
+						label={`Corp: ${row.corpContractsAmount >= 1000 ? `${Math.round(row.corpContractsAmount / 1000)}K` : row.corpContractsAmount}`}
+						sx={{
+							height: 22,
+							fontSize: "0.68rem",
+							fontWeight: 700,
+							bgcolor: "rgba(129, 199, 132, 0.15)",
+							color: "#81C784",
+							border: "1px solid rgba(129, 199, 132, 0.3)",
+						}}
+					/>
+				)}
+				{((row.cxBoughtAmount && row.cxBoughtAmount > 0) ||
+					(row.cxSoldAmount && row.cxSoldAmount > 0)) && (
+					<Chip
+						size="small"
+						label={`CX: ${row.cxBoughtAmount ? `+${row.cxBoughtAmount >= 1000 ? `${Math.round(row.cxBoughtAmount / 1000)}K` : row.cxBoughtAmount}` : ""}${row.cxSoldAmount ? ` -${row.cxSoldAmount >= 1000 ? `${Math.round(row.cxSoldAmount / 1000)}K` : row.cxSoldAmount}` : ""}`}
+						sx={{
+							height: 22,
+							fontSize: "0.68rem",
+							fontWeight: 700,
+							bgcolor: "rgba(255, 183, 77, 0.15)",
+							color: "#FFB74D",
+							border: "1px solid rgba(255, 183, 77, 0.3)",
+						}}
+					/>
+				)}
 			</Stack>
 		</Box>
 

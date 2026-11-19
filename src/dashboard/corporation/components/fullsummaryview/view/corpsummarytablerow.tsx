@@ -340,6 +340,148 @@ export const CorpSummaryTableRow: React.FC<{
 				)}
 			</TableCell>
 			<TableCell align="right" sx={cellSx}>
+				{row.corpContractsAmount && row.corpContractsAmount > 0 ? (
+					<Tooltip
+						arrow
+						placement="top"
+						title={
+							<Box sx={{ p: 0.5 }}>
+								<Typography
+									variant="caption"
+									sx={{
+										fontWeight: 800,
+										color: "#81C784",
+										display: "block",
+										mb: 0.5,
+									}}
+								>
+									INTERNAL CORP CONTRACTS (7D)
+								</Typography>
+								<Typography
+									variant="caption"
+									sx={{ display: "block", color: "#FFF" }}
+								>
+									Total Traded:{" "}
+									<strong>
+										{row.corpContractsAmount.toLocaleString()} {row.ticker}
+									</strong>
+								</Typography>
+								<Typography
+									variant="caption"
+									sx={{ display: "block", color: "rgba(255,255,255,0.7)" }}
+								>
+									Contracts Count: {row.corpContractsCount || 1}
+								</Typography>
+							</Box>
+						}
+					>
+						<Typography
+							variant="caption"
+							sx={{
+								color: "#81C784",
+								fontWeight: 700,
+								fontSize: "0.75rem",
+								fontVariantNumeric: "tabular-nums",
+								cursor: "help",
+							}}
+						>
+							{row.corpContractsAmount >= 1000000
+								? `${(row.corpContractsAmount / 1000000).toFixed(1)}M`
+								: row.corpContractsAmount >= 1000
+									? `${Math.round(row.corpContractsAmount / 1000)}K`
+									: row.corpContractsAmount.toLocaleString()}
+						</Typography>
+					</Tooltip>
+				) : (
+					<Typography
+						variant="caption"
+						sx={{ color: "rgba(255,255,255,0.25)", fontSize: "0.75rem" }}
+					>
+						-
+					</Typography>
+				)}
+			</TableCell>
+			<TableCell align="right" sx={cellSx}>
+				{(row.cxBoughtAmount && row.cxBoughtAmount > 0) ||
+				(row.cxSoldAmount && row.cxSoldAmount > 0) ? (
+					<Tooltip
+						arrow
+						placement="top"
+						title={
+							<Box sx={{ p: 0.5 }}>
+								<Typography
+									variant="caption"
+									sx={{
+										fontWeight: 800,
+										color: "#FFB74D",
+										display: "block",
+										mb: 0.5,
+									}}
+								>
+									CX TRADES BY CORP MEMBERS (7D)
+								</Typography>
+								{row.cxBoughtAmount ? (
+									<Typography
+										variant="caption"
+										sx={{ display: "block", color: "#81C784" }}
+									>
+										Bought:{" "}
+										<strong>
+											+{row.cxBoughtAmount.toLocaleString()} {row.ticker}
+										</strong>{" "}
+										@ avg{" "}
+										{row.cxBoughtAvgPrice
+											? `${row.cxBoughtAvgPrice.toLocaleString()} ICA`
+											: "-"}
+									</Typography>
+								) : null}
+								{row.cxSoldAmount ? (
+									<Typography
+										variant="caption"
+										sx={{ display: "block", color: "#EF5350" }}
+									>
+										Sold:{" "}
+										<strong>
+											-{row.cxSoldAmount.toLocaleString()} {row.ticker}
+										</strong>{" "}
+										@ avg{" "}
+										{row.cxSoldAvgPrice
+											? `${row.cxSoldAvgPrice.toLocaleString()} ICA`
+											: "-"}
+									</Typography>
+								) : null}
+							</Box>
+						}
+					>
+						<Typography
+							variant="caption"
+							sx={{
+								color: "#FFB74D",
+								fontWeight: 700,
+								fontSize: "0.75rem",
+								fontVariantNumeric: "tabular-nums",
+								cursor: "help",
+							}}
+						>
+							{row.cxBoughtAmount
+								? `+${row.cxBoughtAmount >= 1000000 ? `${(row.cxBoughtAmount / 1000000).toFixed(1)}M` : row.cxBoughtAmount >= 1000 ? `${Math.round(row.cxBoughtAmount / 1000)}K` : row.cxBoughtAmount.toLocaleString()}`
+								: ""}
+							{row.cxBoughtAmount && row.cxSoldAmount ? " / " : ""}
+							{row.cxSoldAmount
+								? `-${row.cxSoldAmount >= 1000000 ? `${(row.cxSoldAmount / 1000000).toFixed(1)}M` : row.cxSoldAmount >= 1000 ? `${Math.round(row.cxSoldAmount / 1000)}K` : row.cxSoldAmount.toLocaleString()}`
+								: ""}
+						</Typography>
+					</Tooltip>
+				) : (
+					<Typography
+						variant="caption"
+						sx={{ color: "rgba(255,255,255,0.25)", fontSize: "0.75rem" }}
+					>
+						-
+					</Typography>
+				)}
+			</TableCell>
+			<TableCell align="right" sx={cellSx}>
 				{row.sharePct > 0 ? (
 					<Typography
 						variant="caption"
