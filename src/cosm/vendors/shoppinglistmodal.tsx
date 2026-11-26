@@ -35,7 +35,6 @@ import {
 	ArrowUp,
 	ArrowDown,
 	Store,
-	FileUp,
 } from "lucide-react";
 import { ContentCopy } from "@mui/icons-material";
 import { v4 as uuidv4 } from "uuid";
@@ -47,6 +46,7 @@ import {
 	type ImportedShoppingListItem,
 } from "./utils/shoppinglistimport";
 import MaterialBadge from "../components/materialbadge";
+import MaterialPickerHeader from "../components/materialpickerheader";
 import { Toast } from "./toast";
 import LocationFilter, {
 	HORTUS_LOCATION_CODE,
@@ -1382,43 +1382,12 @@ const AvailableMaterialsPanel: React.FC<{
 					p: isMobile ? 2 : 0,
 				}}
 			>
-				<Box
-					sx={{
-						display: "flex",
-						justifyContent: "space-between",
-						alignItems: "center",
-						p: isMobile ? 0 : 1.5,
-						pb: isMobile ? 2 : 1.5,
-						borderBottom: isMobile ? 0 : `1px solid rgba(255,255,255,0.1)`,
-					}}
-				>
-					<Typography
-						variant="subtitle2"
-						sx={{
-							color: "text.primary",
-							fontWeight: "bold",
-							fontSize: "1.05rem",
-						}}
-					>
-						AVAILABLE MATERIALS
-					</Typography>
-					<Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-						<Button
-							size="small"
-							variant="outlined"
-							startIcon={<FileUp className="inline-icon" />}
-							onClick={() => setShowImport(true)}
-							sx={{ fontWeight: "bold" }}
-						>
-							IMPORT
-						</Button>
-						{isMobile && (
-							<IconButton onClick={onCloseMobile}>
-								<X className="inline-icon" />
-							</IconButton>
-						)}
-					</Box>
-				</Box>
+				<MaterialPickerHeader
+					title="AVAILABLE MATERIALS"
+					isMobile={isMobile}
+					onImport={() => setShowImport(true)}
+					onClose={onCloseMobile}
+				/>
 
 				<Box sx={{ p: isMobile ? 0 : 2, pb: 1 }}>
 					<TextField
@@ -1926,6 +1895,11 @@ const ShoppingListModal: React.FC<{
 	) => {
 		try {
 			await navigator.clipboard.writeText(formatContd(locationCode, items));
+			setToast({
+				open: true,
+				message: `Copied CONTD for ${items.length} material${items.length === 1 ? "" : "s"}!`,
+				color: "success",
+			});
 		} catch (e) {
 			console.error(e);
 		}
@@ -1992,7 +1966,6 @@ const ShoppingListModal: React.FC<{
 					display: "flex",
 					flexDirection: isMobile ? "column" : "row",
 					gap: isMobile ? 0 : 1,
-					p: isMobile ? 0 : 1,
 					width: "100%",
 					height: "100%",
 					overflow: "hidden",
@@ -2004,7 +1977,6 @@ const ShoppingListModal: React.FC<{
 						flex: 1,
 						display: isMobile ? "flex" : "contents",
 						flexDirection: "column",
-						p: isMobile ? 1 : 0,
 						gap: isMobile ? 1 : 0,
 						minHeight: 0,
 						maxWidth: "100%",
@@ -2071,7 +2043,7 @@ const ShoppingListModal: React.FC<{
 										CONTRACTS
 									</Button>
 								)}
-								<Tooltip title="Copy entire shopping list as single CONTD import (ignores stock)">
+								{/* <Tooltip title="Copy entire shopping list as single CONTD import (ignores stock)">
 									<span>
 										<Button
 											size="small"
@@ -2085,7 +2057,7 @@ const ShoppingListModal: React.FC<{
 											COPY CONTD
 										</Button>
 									</span>
-								</Tooltip>
+								</Tooltip> */}
 								<InlineConfirmButton
 									buttonText="CLEAR"
 									icon={<Trash2 className="inline-icon" />}
