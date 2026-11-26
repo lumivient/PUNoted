@@ -4,6 +4,7 @@ import React, {
 	useCallback,
 	useTransition,
 	useMemo,
+	useRef,
 } from "react";
 import {
 	Box,
@@ -269,6 +270,12 @@ export const CorpProductionView = React.memo(
 		);
 
 		const [isProcessing, setIsProcessing] = useState(false);
+		const hasInitialDataRef = useRef(false);
+		useEffect(() => {
+			if (productionSummary && productionSummary.length > 0) {
+				hasInitialDataRef.current = true;
+			}
+		}, [productionSummary]);
 		const [processedList, setProcessedList] = useState<
 			Array<{
 				type: "header" | "row";
@@ -938,7 +945,7 @@ export const CorpProductionView = React.memo(
 						position: "relative",
 					}}
 				>
-					{(isLoading || isProcessing || isPending) && (
+					{(isLoading || isProcessing) && !hasInitialDataRef.current && (
 						<Box
 							sx={{
 								position: "absolute",

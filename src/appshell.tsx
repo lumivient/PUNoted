@@ -262,11 +262,16 @@ const AppShell: React.FC = () => {
 							</ListItemIcon>
 							{isDrawerOpen && (
 								<ListItemText
-									primary="Landing Page"
-									primaryTypographyProps={{
-										fontSize: "0.88rem",
-										fontWeight: 500,
-									}}
+									primary={
+										<Typography
+											sx={{
+												fontSize: "0.88rem",
+												fontWeight: 500,
+											}}
+										>
+											Landing Page
+										</Typography>
+									}
 								/>
 							)}
 						</ListItemButton>
@@ -352,15 +357,20 @@ const AppShell: React.FC = () => {
 											</ListItemIcon>
 											{isDrawerOpen && (
 												<ListItemText
-													primary={item.text}
-													primaryTypographyProps={{
-														fontSize: "0.85rem",
-														fontWeight:
-															finalIsActive && !item.disabled ? 600 : 400,
-														color: item.disabled
-															? "rgba(255, 255, 255, 0.35)"
-															: "inherit",
-													}}
+													primary={
+														<Typography
+															sx={{
+																fontSize: "0.85rem",
+																fontWeight:
+																	finalIsActive && !item.disabled ? 600 : 400,
+																color: item.disabled
+																	? "rgba(255, 255, 255, 0.35)"
+																	: "inherit",
+															}}
+														>
+															{item.text}
+														</Typography>
+													}
 												/>
 											)}
 										</ListItemButton>

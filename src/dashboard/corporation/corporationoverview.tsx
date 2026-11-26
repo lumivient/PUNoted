@@ -658,8 +658,8 @@ export const CorporationOverview: React.FC = () => {
 					<Stack
 						direction="row"
 						spacing={1}
-						alignItems="center"
 						sx={{
+							alignItems: "center",
 							width: { xs: "100%", sm: "auto" },
 							gap: { xs: 1, sm: 0 },
 							flexWrap: "wrap",
@@ -871,7 +871,7 @@ export const CorporationOverview: React.FC = () => {
 						);
 
 						return (
-							<Grid item xs={6} sm={4} md={2.4} key={i}>
+							<Grid size={{ xs: 6, sm: 4, md: 2.4 }} key={i}>
 								{w.tooltip ? (
 									<Tooltip title={w.tooltip} arrow placement="bottom">
 										{cardContent}

@@ -715,11 +715,11 @@ export const CategoryCard = React.memo(
 																											>
 																												{out.factor < 1
 																													? out.factor.toFixed(
-																															1,
-																														)
+																														1,
+																													)
 																													: Math.round(
-																															out.factor,
-																														)}
+																														out.factor,
+																													)}
 																												/d
 																											</Typography>
 																										</Box>
@@ -920,9 +920,9 @@ export const CategoryCard = React.memo(
 						</TableRow>
 					</TableHead>
 					<TableBody>
-						{items.map((row, i) => (
+						{items.map((row) => (
 							<CompactProductionRow
-								key={row.ticker + i}
+								key={row.ticker}
 								row={row}
 								theme={theme}
 								isMobile={isMobile}
